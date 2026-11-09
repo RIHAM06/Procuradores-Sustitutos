@@ -1,90 +1,112 @@
-# ⚖️ Plataforma Privada de Procuradores Sustitutos en España
+# Plataforma Profesional de Procuradores Sustitutos en España ⚖️🏛️
 
-Aplicación web confidencial, moderna y de alto rendimiento diseñada específicamente para la **gestión de contactos, sedes judiciales y tarifas de procuradores sustitutos** en todo el territorio español.
-
----
-
-## 🔐 1. Seguridad, Privacidad y Acceso Restringido
-- **Contraseña Maestra de Acceso:** `2121`
-- **Barrera de Seguridad:** Ningún dato, mapa o contacto se carga ni es visible hasta que el usuario introduce correctamente la clave `"2121"`.
-- **Bloqueo Total a Motores de Búsqueda (Anti-Indexación / No-Google):**
-  - Archivo `robots.txt` con regla `Disallow: /` y bloqueo explícito a Googlebot, Bingbot, Yandex, etc.
-  - Etiquetas meta estrictas en el HTML: `<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">`.
-  - Cabecera HTTP `_headers` configurada con `X-Robots-Tag: noindex, nofollow, noarchive`.
-- **Cierre de Sesión:** Botón **"Salir"** en la barra superior para revocar la sesión segura de inmediato.
+> **Plataforma web profesional, escalable, segura y sincronizada en tiempo real** para la búsqueda, gestión y asignación de procuradores sustitutos y tarifas judiciales en todo el territorio español.
 
 ---
 
-## 🗺️ 2. Interfaz de Mapa Interactivo (Estilo Google Maps / Prezi)
-- **Mapa de España con Leaflet y CartoDB Voyager:** Vista limpia, sin ruidos visuales, con renderizado fluido a 60 fps.
-- **Sedes Principales y Juzgados de Paz:** Cobertura de Partidos Judiciales principales (Audiencias, Juzgados de Primera Instancia, Instrucción, Social, Mercantil) y Juzgados de Paz comarcales.
-- **Navegación Dinámica con Efecto Prezi:** Píldoras de vuelo rápido para desplazarse suavemente (*flyTo*) a cualquier comunidad autónoma (Madrid, Barcelona, Andalucía, Comunidad Valenciana, País Vasco, Galicia, Baleares, Canarias, etc.).
-- **Agrupamiento Inteligente (Marker Clusters):** Maneja sedes densas sin ralentización y se expande de forma intuitiva al acercar el zoom.
-- **Apertura Contextual:** Al hacer clic en un juzgado, la cámara se centra y se despliega la **Ficha Lateral / Bottom Sheet** con todos los procuradores disponibles en ese juzgado.
+## 🚀 Arquitectura y Tecnologías Principales
+
+- **Frontend**: Vanilla ES Modules / JavaScript Moderno, HTML5, CSS3, Vite/Netlify-ready.
+- **Cartografía Interactiva**: [Leaflet](https://leafletjs.com/) con teselas oficiales de **Esri World Street Map** (100% libres de marcas de agua, sin bloqueos de origen cruzado ni restricciones de API).
+- **Backend & Almacenamiento Centralizado**: **PostgreSQL** alojado en la infraestructura en la nube de **Supabase**.
+- **Autenticación & Sesiones**: **Supabase Auth** con soporte de registro, inicio de sesión, sesiones persistentes y control de acceso basado en roles (RBAC).
+- **Seguridad en Base de Datos**: **Row Level Security (RLS)** estricto en todas las tablas con funciones Security Definer.
+- **Sincronización en Tiempo Real**: **Supabase Realtime** (`postgres_changes`) para actualización multidispositivo sin recargar la página.
+- **Cobertura Territorial**:
+  - **431 Partidos Judiciales** y sedes judiciales principales de España.
+  - **8.131 Municipios Oficiales del Instituto Nacional de Estadística (INE)** para localización de Juzgados de Paz.
+- **Despliegue Continuo**: Configurado para despliegue automático en **Netlify** con cabeceras de privacidad y CSP.
 
 ---
 
-## 📇 3. Ficha de Información de Sustitutos
-Para cada juzgado y procurador sustituto se incluye:
-- **Nombre y Apellidos**
-- **Nº de Colegiado y Colegio de Procuradores**
-- **Tarifa de Sustitución:** Importe base (€) y desglose de condiciones (vistas, exhortos, señalamientos, guardias).
-- **Acciones Rápidas con 1 Clic:**
-  - 📞 **Llamar por teléfono (`tel:`)** directo desde el móvil u ordenador.
-  - 💬 **WhatsApp directo (`https://wa.me/`)** con mensaje predefinido de solicitud de sustitución.
-  - ✉️ **Enviar correo electrónico (`mailto:`)** con asunto preparado.
-  - 📋 **Copiar Ficha:** Botón para copiar los datos del procurador al portapapeles.
-- **Especialidades y Disponibilidad:** (Civil, Mercantil, Familia, Guardias 24h, etc.).
+## 🗄️ Esquema Relacional de Base de Datos (PostgreSQL)
+
+La estructura de datos se encuentra dividida en módulos de migración versionados en [`supabase/migrations/`](supabase/migrations/) y compilada en un único archivo de ejecución directa en [`supabase/schema_combined.sql`](supabase/schema_combined.sql):
+
+1. **`roles`**: Definición de permisos (`administrador`, `editor`, `lector`).
+2. **`organizations`**: Agrupaciones colegiales y multi-tenancy.
+3. **`profiles`**: Perfiles de usuario vinculados al sistema de identidad de `auth.users`.
+4. **`memberships`**: Relación de membresía y rol entre usuarios y organizaciones.
+5. **`courts`**: Juzgados, partidos judiciales, audiencias y juzgados de paz con coordenadas geográficas y direcciones.
+6. **`substitutes`**: Procuradores sustitutos con colegiatura, teléfonos, correos y especialidades.
+7. **`substitute_courts`**: Relación N:M entre procuradores y sedes judiciales asignadas.
+8. **`rates`**: Tarifas judiciales por servicio, sede y vigencia.
+9. **`availability`**: Calendario de disponibilidad horaria por profesional.
+10. **`audit_logs`**: Trazabilidad completa de operaciones (INSERT, UPDATE, DELETE, SIGNUP, EXPORT) sin almacenar datos sensibles.
 
 ---
 
-## 🔍 4. Panel de Gestión y Doble Método de Búsqueda
-1. **Navegación Interactiva por el Mapa:** Exploración visual directa sobre el terreno.
-2. **Buscador en Tiempo Real y Directorio Tradicional:**
-   - Barra de búsqueda de texto global: filtra simultáneamente por procurador, juzgado, provincia o localidad.
-   - Filtro por **Provincia** (desplegable con todas las provincias).
-   - Filtro por **Tipo de Sede** (Partidos Judiciales Principales vs Juzgados de Paz).
-   - Filtro por **Tarifa Máxima** (hasta 40€, 50€, 60€, etc.).
-   - Pestaña **"Directorio y Lista"**: Muestra una cuadrícula completa con todos los sustitutos y enlaces a sus juzgados asignados.
-3. **Gestión CRUD Completa:**
-   - Botón **"+ Nuevo Sustituto"**: Formulario modal para registrar procuradores y vincularlos a múltiples juzgados.
-   - Edición y eliminación con confirmación de seguridad.
-   - Botón **"+ Nuevo Juzgado"**: Posibilidad de añadir nuevas sedes o juzgados de paz que no estuviesen dados de alta.
+## 🔒 Matriz de Seguridad y Permisos (RBAC)
+
+| Capacidad / Acción | Lector (`reader`) | Editor (`editor`) | Administrador (`admin`) |
+| :--- | :---: | :---: | :---: |
+| Explorar Mapa y Sedes Judiciales | ✅ | ✅ | ✅ |
+| Consultar Directorio de Procuradores | ✅ | ✅ | ✅ |
+| Contacto Directo (Llamada, WhatsApp, Email) | ✅ | ✅ | ✅ |
+| Registrar / Modificar Procuradores y Sedes | ❌ | ✅ | ✅ |
+| Gestionar Tarifas y Asignaciones | ❌ | ✅ | ✅ |
+| Eliminar Registros Críticos | ❌ | ❌ | ✅ |
+| Administrar Usuarios y Cambiar Roles | ❌ | ❌ | ✅ |
+| Consultar Registro de Auditoría | ❌ | ❌ | ✅ |
+| Exportar / Importar Copias de Seguridad | ❌ | ❌ | ✅ |
+| Ejecutar Migración desde LocalStorage | ❌ | ❌ | ✅ |
 
 ---
 
-## 💾 5. Copia de Seguridad y Respaldo de Datos (Backup JSON)
-- **Almacenamiento Local:** Los datos residen en el navegador (`LocalStorage`) garantizando máxima confidencialidad.
-- **Exportar JSON:** Descarga en 1 clic un archivo `.json` con todos los procuradores y juzgados actualizados.
-- **Importar JSON:** Restaura la base de datos completa desde un respaldo anterior.
-- **Restablecer Base Oficial:** Opción para volver a cargar la base de datos preconfigurada inicial.
+## 🧪 Suite de Pruebas Automatizadas QA (15 Requisitos Obligatorios)
+
+La plataforma incluye un panel de pruebas automatizado accesible en:
+👉 `http://localhost:8085/tests/test-runner.html` o en `/tests/test-runner.html` en Netlify.
+
+### Casos de prueba ejecutados:
+1. **Configuración y Cliente Supabase**: Validación del cliente SDK y variables de entorno.
+2. **Servicio de Autenticación**: Inicio, verificación de token, sesión persistente y cierre seguro.
+3. **Control de Acceso Basado en Roles (RBAC)**: Comprobación de matriz para Lector, Editor y Admin.
+4. **CRUD de Procuradores Sustitutos**: Ciclo de vida completo (Create, Read, Update, Delete).
+5. **Integridad de Partidos Judiciales**: Validación de las 431 sedes judiciales de España.
+6. **Integridad de Municipios INE**: Validación de los 8.131 municipios oficiales.
+7. **Asignaciones N:M**: Asociación y revocación de procuradores a múltiples juzgados.
+8. **Gestión y Cálculo de Tarifas**: Precisión decimal y asociación por tipo de actuación.
+9. **Trazabilidad y Auditoría**: Verificación de registros de auditoría en cambios de estado.
+10. **Control de Concurrencia Optimista**: Detección de colisiones mediante `updated_at`.
+11. **Validación y Anti-XSS**: Sanitización de inyecciones y validación de formatos españoles.
+12. **Gestión Sin Conexión**: Monitor de red y prevención de confirmaciones falsas.
+13. **Eventos en Tiempo Real (Realtime)**: Suscripción a canales `postgres_changes`.
+14. **Copias de Seguridad (Backup)**: Validación de esquema JSON y metadatos de integridad.
+15. **Herramienta de Migración**: Detección y traslado de datos desde LocalStorage a PostgreSQL.
 
 ---
 
-## 📱 6. Diseño 100% Responsive
-- **En Móviles:** La ficha del juzgado se convierte en un *Bottom Sheet* deslizante con tirador táctil, optimizado para llamadas telefónicas y WhatsApp inmediato.
-- **En Ordenadores:** Panel lateral con vista en pantalla dividida (*Split Screen*) y atajos de teclado (`ESC` para cerrar modales o paneles).
+## 💻 Ejecución en Entorno Local
 
----
+El servidor privado se ejecuta en PowerShell en el puerto **8085**:
 
-## 🚀 7. Cómo Ejecutar en Local
-
-### Opción A (Recomendada en Windows):
-Haz doble clic en el archivo:
-```text
-iniciar-servidor.bat
-```
-Se abrirá automáticamente el navegador en `http://localhost:8085` solicitando la clave de acceso (`2121`).
-
-### Opción B (PowerShell):
 ```powershell
+# Iniciar servidor local
 powershell -ExecutionPolicy Bypass -File .\server.ps1
 ```
 
+O haciendo doble clic en el archivo `iniciar-servidor.bat`.
+
+- **URL Local**: `http://localhost:8085/`
+- **Suite QA**: `http://localhost:8085/tests/test-runner.html`
+
 ---
 
-## 🌐 8. Cómo Publicar en Producción (Netlify, Cloudflare, etc.)
-1. El proyecto es **100% estático** (HTML, CSS y JS puro). No requiere Node.js ni bases de datos complejas.
-2. Arrastra la carpeta `Procuradores-Sustitutos` a [Netlify Drop](https://app.netlify.com/drop).
-3. Tanto `robots.txt` como `_headers` garantizarán que los motores de búsqueda jamás indexen el sitio ni expongan los contactos profesionales.
+## 🌐 Despliegue en Netlify
 
+El proyecto está preparado para despliegue directo sin necesidad de compilar:
+
+1. Conecta tu repositorio de GitHub en [Netlify](https://app.netlify.com/).
+2. Directorio de publicación: Raíz del repositorio (`.`).
+3. Variables de entorno (opcional si usas el Panel Admin):
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+4. Netlify aplicará automáticamente los archivos [`netlify.toml`](netlify.toml), [`_headers`](_headers) y [`_redirects`](_redirects) para garantizar privacidad estricta (`noindex`, `nofollow`, CSP).
+
+---
+
+## 💖 Detalle Especial: Firma JORI
+Ubicada en la esquina inferior derecha de la plataforma:
+- **Texto**: `JORI`
+- **Icono**: Corazón con degradado dividido mitad rojo pastel (`#ff7b89`) y mitad verde pastel (`#7bd389`), con animación sutil de latido.
