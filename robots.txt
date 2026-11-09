@@ -1,0 +1,23 @@
+User-agent: *
+Disallow: /
+Noindex: /
+
+# Bloqueo total para todos los rastreadores e indexadores web
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+

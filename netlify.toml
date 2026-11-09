@@ -1,0 +1,36 @@
+# ==============================================================================
+# CONFIGURACIÓN DE DESPLIEGUE PARA NETLIFY
+# Aplicación Privada: Procuradores Sustitutos España
+# ==============================================================================
+
+[build]
+  publish = "."
+
+# Enrutamiento SPA (Single Page Application)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cabeceras de Seguridad y Bloqueo Estricto contra Indexación de Motores de Búsqueda
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Bloqueo total de indexación para Googlebot y buscadores en producción
+    X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+    X-Frame-Options = "SAMEORIGIN"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache de alto rendimiento para recursos estáticos
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
