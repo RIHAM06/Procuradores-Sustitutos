@@ -122,74 +122,210 @@
   // INICIALIZACIÓN
   // ==========================================================================
   function init() {
-    setupAuth();
+    // 1. Inicializar Mapa y Directorio INMEDIATAMENTE (el mapa siempre es visible)
+    initMap();
+    populateProvincesFilter();
+    renderDirectory();
+
+    // 2. Vincular listeners de eventos
     setupEventListeners();
+
+    // 3. Inicializar Sistema de Autenticación Moderno (Supabase Auth / RBAC)
+    setupAuth();
+
+    // 4. Inicializar suscripción a eventos en tiempo real
+    setupRealtimeAndOffline();
   }
 
   // ==========================================================================
-  // 1. SISTEMA DE AUTENTICACIÓN Y SEGURIDAD ("2121")
+  // 1. SISTEMA DE AUTENTICACIÓN Y SEGURIDAD (SUPABASE AUTH + ROLES)
   // ==========================================================================
   function setupAuth() {
-    const authKey = (window.STORAGE_KEYS && window.STORAGE_KEYS.AUTH) || "procuradores_session_auth_v1";
-    const sessionAuth = sessionStorage.getItem(authKey);
-    if (sessionAuth === "authenticated_2121") {
-      unlockApp();
-    } else {
-      lockApp();
+    // Escuchar cambios de estado desde window.AuthService
+    if (window.AuthService && typeof window.AuthService.subscribe === "function") {
+      window.AuthService.subscribe(({ user, profile, role }) => {
+        updateAuthUI(user, profile, role);
+      });
     }
 
-    dom.loginForm.addEventListener("submit", function (e) {
-      e.preventDefault();
-      const enteredPass = dom.passwordInput.value.trim();
+    // Botón Iniciar Sesión en la Cabecera
+    const btnHeaderLogin = document.getElementById("btn-header-login");
+    if (btnHeaderLogin) {
+      btnHeaderLogin.addEventListener("click", () => openAuthModal());
+    }
 
-      if (enteredPass === MASTER_PASSWORD) {
-        sessionStorage.setItem(authKey, "authenticated_2121");
-        dom.loginErrorMsg.textContent = "";
-        unlockApp();
-        showToast("Acceso concedido al sistema privado");
-      } else {
-        triggerLoginError();
-      }
-    });
+    // Botón Cerrar Modal de Autenticación
+    const btnCloseAuth = document.getElementById("auth-modal-close-btn");
+    if (btnCloseAuth) {
+      btnCloseAuth.addEventListener("click", () => closeAuthModal());
+    }
 
-    dom.btnLogout.addEventListener("click", function () {
-      if (confirm("¿Deseas cerrar la sesión de trabajo segura?")) {
-        sessionStorage.removeItem(authKey);
-        lockApp();
-        showToast("Sesión cerrada con éxito");
-      }
-    });
+    // Toggle entre Iniciar Sesión y Registrarse
+    const btnToggleRegister = document.getElementById("btn-toggle-register");
+    const btnToggleLoginBack = document.getElementById("btn-toggle-login-back");
+    const loginSubcard = document.getElementById("login-subcard");
+    const registerSubcard = document.getElementById("register-subcard");
+
+    if (btnToggleRegister && loginSubcard && registerSubcard) {
+      btnToggleRegister.addEventListener("click", (e) => {
+        e.preventDefault();
+        loginSubcard.style.display = "none";
+        registerSubcard.style.display = "block";
+      });
+    }
+
+    if (btnToggleLoginBack && loginSubcard && registerSubcard) {
+      btnToggleLoginBack.addEventListener("click", (e) => {
+        e.preventDefault();
+        registerSubcard.style.display = "none";
+        loginSubcard.style.display = "block";
+      });
+    }
+
+    // Formulario de Inicio de Sesión
+    if (dom.loginForm) {
+      dom.loginForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const emailInput = document.getElementById("login-email-input");
+        const email = emailInput ? emailInput.value.trim() : "admin@test.es";
+        const password = dom.passwordInput ? dom.passwordInput.value.trim() : "";
+
+        try {
+          if (dom.loginErrorMsg) dom.loginErrorMsg.textContent = "";
+          if (window.AuthService) {
+            await window.AuthService.signIn(email, password);
+          }
+          closeAuthModal();
+          showToast("Sesión iniciada correctamente");
+        } catch (err) {
+          if (dom.loginErrorMsg) dom.loginErrorMsg.textContent = err.message || "Error al iniciar sesión.";
+        }
+      });
+    }
+
+    // Formulario de Registro
+    const registerForm = document.getElementById("register-form");
+    if (registerForm) {
+      registerForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const regEmail = document.getElementById("reg-email")?.value;
+        const regPass = document.getElementById("reg-pass")?.value;
+        const regFirst = document.getElementById("reg-first-name")?.value;
+        const regLast = document.getElementById("reg-last-name")?.value;
+        const regPhone = document.getElementById("reg-phone")?.value;
+        const regRole = document.getElementById("reg-role")?.value || "reader";
+        const errorEl = document.getElementById("register-error-msg");
+
+        try {
+          if (errorEl) errorEl.textContent = "";
+          if (window.AuthService) {
+            await window.AuthService.signUp({
+              email: regEmail,
+              password: regPass,
+              firstName: regFirst,
+              lastName: regLast,
+              phone: regPhone,
+              requestedRole: regRole
+            });
+          }
+          showToast("Cuenta creada con éxito");
+          if (registerSubcard) registerSubcard.style.display = "none";
+          if (loginSubcard) loginSubcard.style.display = "block";
+        } catch (err) {
+          if (errorEl) errorEl.textContent = err.message;
+        }
+      });
+    }
+
+    // Cierre de Sesión
+    if (dom.btnLogout) {
+      dom.btnLogout.addEventListener("click", async function () {
+        if (confirm("¿Deseas cerrar la sesión de trabajo?")) {
+          if (window.AuthService) {
+            await window.AuthService.signOut();
+          }
+          showToast("Sesión cerrada");
+        }
+      });
+    }
   }
 
-  function unlockApp() {
-    state.isAuthenticated = true;
-    dom.loginScreen.classList.add("hidden");
-    dom.appContainer.style.display = "flex";
+  function updateAuthUI(user, profile, role) {
+    const btnHeaderLogin = document.getElementById("btn-header-login");
+    const userChip = document.getElementById("user-profile-chip");
+    const btnAddSub = document.getElementById("btn-open-add-modal");
+    const btnAddCourt = document.getElementById("btn-open-add-court-modal");
+    const btnAdmin = document.getElementById("btn-open-admin-panel");
+    const btnLogout = document.getElementById("btn-logout");
 
-    // Inicializar mapa y datos solo tras autenticación segura
-    if (!state.map) {
-      initMap();
-      populateProvincesFilter();
+    const isAuthenticated = !!user;
+    state.isAuthenticated = isAuthenticated;
+    state.userRole = role || "reader";
+
+    if (isAuthenticated) {
+      if (btnHeaderLogin) btnHeaderLogin.style.display = "none";
+      if (btnLogout) btnLogout.style.display = "inline-flex";
+
+      if (userChip) {
+        userChip.style.display = "inline-flex";
+        const avatar = userChip.querySelector(".user-avatar-circle");
+        const nameLabel = userChip.querySelector(".user-name-label");
+        const roleBadge = userChip.querySelector(".user-role-badge");
+
+        const initial = (profile?.first_name || user.email || "U")[0].toUpperCase();
+        if (avatar) avatar.textContent = initial;
+        if (nameLabel) nameLabel.textContent = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || user.email;
+        if (roleBadge) {
+          const roleLabels = { admin: "Administrador", editor: "Editor", reader: "Lector" };
+          roleBadge.textContent = roleLabels[role] || "Lector";
+          roleBadge.className = `user-role-badge role-${role}`;
+        }
+      }
+
+      const isEditorOrAdmin = role === "admin" || role === "editor";
+      if (btnAddSub) btnAddSub.style.display = isEditorOrAdmin ? "inline-flex" : "none";
+      if (btnAddCourt) btnAddCourt.style.display = isEditorOrAdmin ? "inline-flex" : "none";
+      if (btnAdmin) btnAdmin.style.display = (role === "admin") ? "inline-flex" : "none";
+    } else {
+      if (btnHeaderLogin) btnHeaderLogin.style.display = "inline-flex";
+      if (userChip) userChip.style.display = "none";
+      if (btnAddSub) btnAddSub.style.display = "none";
+      if (btnAddCourt) btnAddCourt.style.display = "none";
+      if (btnAdmin) btnAdmin.style.display = "none";
+      if (btnLogout) btnLogout.style.display = "none";
+    }
+  }
+
+  function openAuthModal() {
+    const modal = document.getElementById("auth-modal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+      const emailInput = document.getElementById("login-email-input");
+      if (emailInput) emailInput.focus();
+    }
+  }
+
+  function closeAuthModal() {
+    const modal = document.getElementById("auth-modal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
+  }
+
+  function setupRealtimeAndOffline() {
+    window.addEventListener("realtime:substitute-change", () => {
+      if (window.ProApp && typeof window.ProApp.syncInitialData === "function") {
+        window.ProApp.syncInitialData();
+      }
+      updateMapMarkers();
       renderDirectory();
-    } else {
-      setTimeout(() => state.map.invalidateSize(), 200);
-    }
-  }
+    });
 
-  function lockApp() {
-    state.isAuthenticated = false;
-    dom.loginScreen.classList.remove("hidden");
-    dom.passwordInput.value = "";
-    dom.passwordInput.focus();
-  }
-
-  function triggerLoginError() {
-    dom.loginErrorMsg.textContent = "Contraseña incorrecta. Acceso restringido.";
-    const card = dom.loginScreen.querySelector(".login-card");
-    card.classList.remove("shake");
-    void card.offsetWidth; // Reiniciar animación
-    card.classList.add("shake");
-    dom.passwordInput.select();
+    window.addEventListener("realtime:court-change", () => {
+      updateMapMarkers();
+    });
   }
 
   // ==========================================================================
@@ -1223,57 +1359,100 @@
       applyFilters();
     });
 
-    // Píldoras de navegación rápida por comunidades/provincias (Efecto Prezi)
-    dom.regionPillsContainer.querySelectorAll(".region-pill-btn").forEach((pill) => {
-      pill.addEventListener("click", () => {
-        dom.regionPillsContainer
-          .querySelectorAll(".region-pill-btn")
-          .forEach((p) => p.classList.remove("active"));
-        pill.classList.add("active");
+    // Píldoras de navegación si están presentes
+    if (dom.regionPillsContainer) {
+      dom.regionPillsContainer.querySelectorAll(".region-pill-btn").forEach((pill) => {
+        pill.addEventListener("click", () => {
+          dom.regionPillsContainer
+            .querySelectorAll(".region-pill-btn")
+            .forEach((p) => p.classList.remove("active"));
+          pill.classList.add("active");
 
-        const lat = parseFloat(pill.getAttribute("data-lat"));
-        const lng = parseFloat(pill.getAttribute("data-lng"));
-        const zoom = parseInt(pill.getAttribute("data-zoom"), 10);
+          const lat = parseFloat(pill.getAttribute("data-lat"));
+          const lng = parseFloat(pill.getAttribute("data-lng"));
+          const zoom = parseInt(pill.getAttribute("data-zoom"), 10);
 
-        if (state.currentView !== "map") {
-          switchView("map");
-        }
+          if (state.currentView !== "map") {
+            switchView("map");
+          }
 
-        if (state.map) {
-          state.map.flyTo([lat, lng], zoom, {
-            duration: 1.2,
-            easeLinearity: 0.2
-          });
-        }
+          if (state.map) {
+            state.map.flyTo([lat, lng], zoom, {
+              duration: 1.2,
+              easeLinearity: 0.2
+            });
+          }
+        });
       });
-    });
+    }
 
     // Botones del Drawer
-    dom.drawerCloseBtn.addEventListener("click", closeCourtDrawer);
-    dom.btnAddSubToCourt.addEventListener("click", () => {
-      if (state.selectedCourt) {
-        openAddSubstituteModal(state.selectedCourt.id);
-      }
-    });
+    if (dom.drawerCloseBtn) dom.drawerCloseBtn.addEventListener("click", closeCourtDrawer);
+    if (dom.btnAddSubToCourt) {
+      dom.btnAddSubToCourt.addEventListener("click", () => {
+        if (!state.isAuthenticated) {
+          openAuthModal();
+          return;
+        }
+        if (state.selectedCourt) {
+          openAddSubstituteModal(state.selectedCourt.id);
+        }
+      });
+    }
 
     // Botones del Modal CRUD
-    dom.btnOpenAddModal.addEventListener("click", () => openAddSubstituteModal());
-    dom.modalCloseBtn.addEventListener("click", closeSubstituteModal);
-    dom.modalCancelBtn.addEventListener("click", closeSubstituteModal);
-    dom.substituteForm.addEventListener("submit", handleSubstituteFormSubmit);
+    if (dom.btnOpenAddModal) {
+      dom.btnOpenAddModal.addEventListener("click", () => {
+        if (!state.isAuthenticated) {
+          openAuthModal();
+          return;
+        }
+        openAddSubstituteModal();
+      });
+    }
+    if (dom.modalCloseBtn) dom.modalCloseBtn.addEventListener("click", closeSubstituteModal);
+    if (dom.modalCancelBtn) dom.modalCancelBtn.addEventListener("click", closeSubstituteModal);
+    if (dom.substituteForm) dom.substituteForm.addEventListener("submit", handleSubstituteFormSubmit);
 
     // Botones del Modal de Juzgado
-    dom.btnOpenAddCourtModal.addEventListener("click", openAddCourtModal);
-    dom.courtModalCloseBtn.addEventListener("click", closeCourtModal);
-    dom.courtModalCancelBtn.addEventListener("click", closeCourtModal);
-    dom.courtForm.addEventListener("submit", handleCourtFormSubmit);
+    if (dom.btnOpenAddCourtModal) {
+      dom.btnOpenAddCourtModal.addEventListener("click", () => {
+        if (!state.isAuthenticated) {
+          openAuthModal();
+          return;
+        }
+        openAddCourtModal();
+      });
+    }
+    if (dom.courtModalCloseBtn) dom.courtModalCloseBtn.addEventListener("click", closeCourtModal);
+    if (dom.courtModalCancelBtn) dom.courtModalCancelBtn.addEventListener("click", closeCourtModal);
+    if (dom.courtForm) dom.courtForm.addEventListener("submit", handleCourtFormSubmit);
 
     // Botones del Modal Backup
-    dom.btnOpenBackupModal.addEventListener("click", openBackupModal);
-    dom.backupModalCloseBtn.addEventListener("click", closeBackupModal);
-    dom.btnExportJson.addEventListener("click", exportBackup);
-    dom.importJsonFileInput.addEventListener("change", importBackup);
-    dom.btnResetData.addEventListener("click", resetToDefaultData);
+    if (dom.btnOpenBackupModal) dom.btnOpenBackupModal.addEventListener("click", openBackupModal);
+    if (dom.backupModalCloseBtn) dom.backupModalCloseBtn.addEventListener("click", closeBackupModal);
+    if (dom.btnExportJson) dom.btnExportJson.addEventListener("click", exportBackup);
+    if (dom.importJsonFileInput) dom.importJsonFileInput.addEventListener("change", importBackup);
+    if (dom.btnResetData) dom.btnResetData.addEventListener("click", resetToDefaultData);
+
+    // Modal Admin Panel
+    const btnOpenAdmin = document.getElementById("btn-open-admin-panel");
+    const adminModal = document.getElementById("admin-panel-modal");
+    const btnCloseAdmin = document.getElementById("admin-modal-close-btn");
+
+    if (btnOpenAdmin && adminModal) {
+      btnOpenAdmin.addEventListener("click", () => {
+        if (window.ProApp && typeof window.ProApp.loadAdminPanelData === "function") {
+          window.ProApp.loadAdminPanelData();
+        }
+        adminModal.style.display = "flex";
+      });
+    }
+    if (btnCloseAdmin && adminModal) {
+      btnCloseAdmin.addEventListener("click", () => {
+        adminModal.style.display = "none";
+      });
+    }
 
     // Cerrar modales con tecla ESC
     document.addEventListener("keydown", (e) => {
@@ -1282,19 +1461,27 @@
         closeSubstituteModal();
         closeCourtModal();
         closeBackupModal();
+        closeAuthModal();
+        if (adminModal) adminModal.style.display = "none";
       }
     });
 
     // Cerrar al hacer clic fuera del modal
-    dom.substituteModal.addEventListener("click", (e) => {
-      if (e.target === dom.substituteModal) closeSubstituteModal();
-    });
-    dom.courtModal.addEventListener("click", (e) => {
-      if (e.target === dom.courtModal) closeCourtModal();
-    });
-    dom.backupModal.addEventListener("click", (e) => {
-      if (e.target === dom.backupModal) closeBackupModal();
-    });
+    if (dom.substituteModal) {
+      dom.substituteModal.addEventListener("click", (e) => {
+        if (e.target === dom.substituteModal) closeSubstituteModal();
+      });
+    }
+    if (dom.courtModal) {
+      dom.courtModal.addEventListener("click", (e) => {
+        if (e.target === dom.courtModal) closeCourtModal();
+      });
+    }
+    if (dom.backupModal) {
+      dom.backupModal.addEventListener("click", (e) => {
+        if (e.target === dom.backupModal) closeBackupModal();
+      });
+    }
   }
 
   // ==========================================================================
@@ -1328,10 +1515,8 @@
         const added = window.dataService.hydrateFullDatabase(window.SPAIN_JUDICIAL_DATABASE);
         if (added > 0) {
           populateProvincesFilter();
-          if (state.isAuthenticated) {
-            updateMapMarkers();
-            renderDirectory();
-          }
+          updateMapMarkers();
+          renderDirectory();
         }
       }
     }, 200);

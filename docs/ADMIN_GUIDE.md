@@ -60,3 +60,4 @@ En la pestaña **💾 Copias de Seguridad**:
 - **Exportación**: Descarga un volcado transaccional en JSON estructurado de todas las tablas (`substitutes`, `courts`, `rates`, `substitute_courts`) con metadatos de versión y fecha.
 - **Restauración**: Permite importar un archivo JSON validando previamente su esquema para prevenir corrupción de datos.
 - Se recomienda descargar una copia periódica o antes de realizar modificaciones masivas en el directorio colegial.
+

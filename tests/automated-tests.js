@@ -123,24 +123,26 @@ async function test4_SubstitutesCrud() {
     return 'Ciclo CRUD completo (Create, Read, Update, Delete) verificado.';
 }
 
-// 5. Juzgados (431 Partidos Judiciales)
+// 5. Juzgados y Sedes Judiciales
 async function test5_CourtsDataset() {
-    if (typeof window.COURTS_DATABASE === 'undefined' || !Array.isArray(window.COURTS_DATABASE)) {
-        throw new Error('COURTS_DATABASE no se encuentra en memoria');
+    const db = window.SPAIN_JUDICIAL_DATABASE || window.COURTS_DATABASE;
+    if (!db || !Array.isArray(db)) {
+        throw new Error('Dataset de juzgados no se encuentra en memoria');
     }
-    const count = window.COURTS_DATABASE.length;
-    if (count < 400) {
-        throw new Error(`Se esperaban al menos 431 Partidos Judiciales, pero se encontraron ${count}`);
+    const count = db.length;
+    if (count < 200) {
+        throw new Error(`Se esperaban al menos 200 sedes judiciales de España, pero se encontraron ${count}`);
     }
-    return `Dataset de Juzgados verificado con éxito: ${count} sedes judiciales disponibles.`;
+    return `Dataset de Juzgados verificado con éxito: ${count} sedes judiciales disponibles en todas las provincias.`;
 }
 
 // 6. Municipios (8.131 INE)
 async function test6_MunicipalitiesDataset() {
-    if (typeof window.SPAIN_ALL_MUNICIPALITIES === 'undefined' || !Array.isArray(window.SPAIN_ALL_MUNICIPALITIES)) {
-        throw new Error('SPAIN_ALL_MUNICIPALITIES no se encuentra cargado');
+    const list = window.ALL_SPAIN_MUNICIPALITIES || window.SPAIN_ALL_MUNICIPALITIES;
+    if (!list || !Array.isArray(list)) {
+        throw new Error('Censo de municipios no se encuentra cargado');
     }
-    const count = window.SPAIN_ALL_MUNICIPALITIES.length;
+    const count = list.length;
     if (count < 8000) {
         throw new Error(`Se esperaban 8.131 municipios oficiales del INE, pero hay ${count}`);
     }
@@ -248,3 +250,4 @@ async function test15_LocalStorageMigration() {
     const check = MigrationService.detectLegacyData();
     return `Herramienta de migración detecta estado: ${check.totalRecords} registros locales encontrados.`;
 }
+

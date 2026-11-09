@@ -174,3 +174,4 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_created ON public.audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_table ON public.audit_logs(table_name);
 CREATE INDEX IF NOT EXISTS idx_audit_user ON public.audit_logs(user_id);
+

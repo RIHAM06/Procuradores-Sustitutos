@@ -107,3 +107,4 @@ export function getConnectionStatus() {
 
 window.getSupabaseClient = getSupabaseClient;
 window.testConnection = testConnection;
+

@@ -264,3 +264,4 @@ export const AuthService = {
 };
 
 window.AuthService = AuthService;
+

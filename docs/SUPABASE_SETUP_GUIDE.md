@@ -68,3 +68,4 @@ Crea un archivo `.env` basado en [`.env.example`](../.env.example).
 Por defecto, Supabase incluye un servidor SMTP básico para pruebas. Para producción:
 1. Ve a **Authentication -> Email Templates** en Supabase para personalizar el mensaje de confirmación y restablecimiento de contraseña.
 2. En **Authentication -> URL Configuration**, establece la **Site URL** con tu dominio final de Netlify (ej: `https://procuradores-sustitutos.netlify.app`).
+

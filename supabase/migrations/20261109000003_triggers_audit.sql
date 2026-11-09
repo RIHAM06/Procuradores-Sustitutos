@@ -227,3 +227,4 @@ EXCEPTION
         -- Si la publicación no existe en entornos locales o de desarrollo, ignorar pacíficamente
         NULL;
 END $$;
+

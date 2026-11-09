@@ -1,4 +1,4 @@
-﻿$port = 8085
+$port = 8085
 $root = $PSScriptRoot
 
 $listener = New-Object System.Net.HttpListener

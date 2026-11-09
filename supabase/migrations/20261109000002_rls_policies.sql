@@ -203,3 +203,4 @@ CREATE POLICY "Sistema y administradores pueden registrar logs de auditoría"
     ON public.audit_logs FOR INSERT
     TO authenticated
     WITH CHECK (true);
+

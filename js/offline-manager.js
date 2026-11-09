@@ -98,3 +98,4 @@ export const OfflineManager = {
 };
 
 window.OfflineManager = OfflineManager;
+

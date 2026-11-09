@@ -49,3 +49,4 @@ Este documento describe la estrategia de respaldo y el protocolo de contingencia
 | **RPO (Recovery Point Objective)** | < 24 horas (Automático) / < 1 hora (Manual) | Pérdida máxima admisible de datos entre respaldos |
 | **RTO (Recovery Time Objective)** | < 15 minutos | Tiempo máximo para restaurar la operatividad del sistema |
 | **Integridad de Datos** | 100% | Validación de claves primarias, foráneas y restricciones SQL |
+

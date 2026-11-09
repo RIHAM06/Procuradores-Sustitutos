@@ -48,19 +48,17 @@ class ProAppController {
     }
 
     handleAuthState({ user, profile, role }) {
-        const loginScreen = document.getElementById('login-screen');
-        const appContainer = document.getElementById('app-container');
+        const btnHeaderLogin = document.getElementById('btn-header-login');
         const userChip = document.getElementById('user-profile-chip');
         const adminBtn = document.getElementById('btn-open-admin-panel');
         const addSubBtn = document.getElementById('btn-open-add-modal');
         const addCourtBtn = document.getElementById('btn-open-add-court-modal');
+        const logoutBtn = document.getElementById('btn-logout');
 
         if (user) {
-            // Usuario autenticado
-            if (loginScreen) loginScreen.style.display = 'none';
-            if (appContainer) appContainer.style.display = 'flex';
+            if (btnHeaderLogin) btnHeaderLogin.style.display = 'none';
+            if (logoutBtn) logoutBtn.style.display = 'inline-flex';
 
-            // Actualizar Chip de Usuario
             if (userChip) {
                 userChip.style.display = 'inline-flex';
                 const avatar = userChip.querySelector('.user-avatar-circle');
@@ -76,22 +74,17 @@ class ProAppController {
                 }
             }
 
-            // Aplicar permisos RBAC en la UI
-            if (adminBtn) {
-                adminBtn.style.display = RBACService.isAdmin() ? 'inline-flex' : 'none';
-            }
-            if (addSubBtn) {
-                addSubBtn.style.display = RBACService.isEditor() ? 'inline-flex' : 'none';
-            }
-            if (addCourtBtn) {
-                addCourtBtn.style.display = RBACService.isEditor() ? 'inline-flex' : 'none';
-            }
+            const isEditorOrAdmin = role === 'admin' || role === 'editor';
+            if (addSubBtn) addSubBtn.style.display = isEditorOrAdmin ? 'inline-flex' : 'none';
+            if (addCourtBtn) addCourtBtn.style.display = isEditorOrAdmin ? 'inline-flex' : 'none';
+            if (adminBtn) adminBtn.style.display = (role === 'admin') ? 'inline-flex' : 'none';
         } else {
-            // Usuario no autenticado
-            if (loginScreen) loginScreen.style.display = 'flex';
-            if (appContainer) appContainer.style.display = 'none';
+            if (btnHeaderLogin) btnHeaderLogin.style.display = 'inline-flex';
             if (userChip) userChip.style.display = 'none';
+            if (addSubBtn) addSubBtn.style.display = 'none';
+            if (addCourtBtn) addCourtBtn.style.display = 'none';
             if (adminBtn) adminBtn.style.display = 'none';
+            if (logoutBtn) logoutBtn.style.display = 'none';
         }
     }
 
@@ -134,6 +127,7 @@ class ProAppController {
         const emailInput = document.getElementById('login-email-input');
         const passInput = document.getElementById('password-input');
 
+        // Formulario de Inicio de Sesión
         if (loginForm) {
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -144,9 +138,34 @@ class ProAppController {
                 try {
                     await AuthService.signIn(email, pass);
                     this.showToast('Sesión iniciada correctamente');
+                    const authModal = document.getElementById('auth-modal');
+                    if (authModal) {
+                        authModal.classList.add('hidden');
+                        authModal.style.display = 'none';
+                    }
                 } catch (err) {
                     loginErrorMsg.textContent = err.message;
                 }
+            });
+        }
+
+        // Botón Iniciar Sesión en la Cabecera
+        const btnHeaderLogin = document.getElementById('btn-header-login');
+        const authModal = document.getElementById('auth-modal');
+        const btnCloseAuth = document.getElementById('auth-modal-close-btn');
+
+        if (btnHeaderLogin && authModal) {
+            btnHeaderLogin.addEventListener('click', () => {
+                authModal.classList.remove('hidden');
+                authModal.style.display = 'flex';
+                if (emailInput) emailInput.focus();
+            });
+        }
+
+        if (btnCloseAuth && authModal) {
+            btnCloseAuth.addEventListener('click', () => {
+                authModal.classList.add('hidden');
+                authModal.style.display = 'none';
             });
         }
 
@@ -438,3 +457,4 @@ window.ProApp = new ProAppController();
 document.addEventListener('DOMContentLoaded', () => {
     window.ProApp.init();
 });
+

@@ -40,3 +40,4 @@ VALUES
     ('r0000000-0000-0000-0000-000000000004', 's0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000003', 'Lanzamiento / Toma de Posesión', 75.00, 'EUR', 'Comisión judicial con redacción de acta circunstanciada', 'active'),
     ('r0000000-0000-0000-0000-000000000005', 's0000000-0000-0000-0000-000000000004', 'c0000000-0000-0000-0000-000000000004', 'Sustitución General de Vistas', 50.00, 'EUR', 'Tarifa unificada para sedes de Sevilla capital', 'active')
 ON CONFLICT (id) DO NOTHING;
+
