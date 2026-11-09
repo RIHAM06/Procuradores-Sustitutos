@@ -32,8 +32,9 @@ Si prefieres tener despliegue continuo automático cada vez que hagas cambios:
 
 ---
 
-## 🔒 Privacidad en Producción
-Gracias a los archivos `netlify.toml`, `robots.txt` y `_headers` que te he configurado:
-- Ningún motor de búsqueda (Google, Bing, etc.) podrá indexar ni rastrear tu web.
-- La pantalla de acceso requerirá siempre la clave de seguridad **`2121`** para visualizar cualquier información.
+## 🔒 Privacidad y Seguridad en Producción
+Gracias a los archivos `netlify.toml`, `robots.txt` y `_headers` configurados:
+- Ningún motor de búsqueda (Google, Bing, etc.) podrá indexar ni rastrear tu plataforma (`X-Robots-Tag: noindex, nofollow`).
+- La pantalla de acceso privado protege toda la información mediante **Supabase Auth** y políticas estrictas de base de datos **Row Level Security (RLS)** en PostgreSQL.
+- Solo tú puedes iniciar sesión con tu cuenta privada y acceder al mapa, directorio y tarifas judiciales.
 

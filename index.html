@@ -166,7 +166,7 @@
   <!-- ==========================================================================
        APLICACIÓN PRINCIPAL PRIVADA (MAPA INTERACTIVO Y DIRECTORIO)
        ========================================================================== -->
-  <div id="app-container" style="display: none;">
+  <div id="app-container">
     
     <!-- CABECERA PRINCIPAL -->
     <header class="app-header">
@@ -211,26 +211,16 @@
           </span>
         </div>
 
-        <!-- Botón para Iniciar Sesión (visible cuando NO hay sesión) -->
-        <button class="btn-action-primary" id="btn-header-login" title="Acceder con tu cuenta">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-            <polyline points="10 17 15 12 10 7"/>
-            <line x1="15" y1="12" x2="3" y2="12"/>
-          </svg>
-          <span>Iniciar Sesión</span>
-        </button>
-
-        <!-- Chip de Perfil de Usuario y Rol (visible cuando HAY sesión) -->
+        <!-- Chip de Perfil de Usuario (visible cuando HAY sesión) -->
         <div id="user-profile-chip" class="user-profile-chip" style="display: none;">
-          <span class="user-avatar-circle">U</span>
+          <span class="user-avatar-circle">P</span>
           <div class="user-info-text">
-            <span class="user-name-label">Usuario</span>
-            <span class="user-role-badge role-reader">Lector</span>
+            <span class="user-name-label">Propietario</span>
+            <span class="user-role-badge role-admin">Acceso Personal</span>
           </div>
         </div>
 
-        <!-- Botón Nuevo Procurador Sustituto (visible para Editores y Administradores) -->
+        <!-- Botón Nuevo Procurador Sustituto -->
         <button class="btn-action-primary" id="btn-open-add-modal" style="display: none;" title="Registrar nuevo procurador sustituto">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
@@ -239,13 +229,13 @@
           <span>+ Sustituto</span>
         </button>
 
-        <!-- Botón Panel de Administración (visible solo para Administrador) -->
-        <button class="btn-action-secondary" id="btn-open-admin-panel" style="display: none;" title="Abrir Panel de Administración del Sistema">
+        <!-- Botón Panel de Ajustes y Backups -->
+        <button class="btn-action-secondary" id="btn-open-admin-panel" style="display: none;" title="Abrir Ajustes y Copias de Seguridad">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          <span>Admin</span>
+          <span>Ajustes</span>
         </button>
 
         <!-- Botón Salir -->

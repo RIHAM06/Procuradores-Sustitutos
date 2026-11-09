@@ -1,3 +1,7 @@
-# Redirección SPA estándar para Netlify
-/*    /index.html   200
+# Soporte para archivos estáticos y suite de pruebas
+/tests/*  /tests/:splat  200
+/docs/*   /docs/:splat   200
+
+# Redirección SPA para Netlify
+/*        /index.html    200
 

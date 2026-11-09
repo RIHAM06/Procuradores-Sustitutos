@@ -8,6 +8,11 @@
 
 # Enrutamiento SPA (Single Page Application)
 [[redirects]]
+  from = "/tests/*"
+  to = "/tests/:splat"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

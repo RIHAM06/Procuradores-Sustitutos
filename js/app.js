@@ -167,9 +167,6 @@
         loginScreen.classList.add("hidden");
         loginScreen.style.display = "none";
       }
-      if (appContainer) {
-        appContainer.style.display = "flex";
-      }
 
       if (btnLogout) btnLogout.style.display = "inline-flex";
       if (btnAddSub) btnAddSub.style.display = "inline-flex";
@@ -194,16 +191,19 @@
       if (state.map) {
         setTimeout(() => {
           try { state.map.invalidateSize(); } catch (e) {}
-        }, 150);
+        }, 100);
       }
     } else {
-      if (appContainer) {
-        appContainer.style.display = "none";
-      }
       if (loginScreen) {
         loginScreen.classList.remove("hidden");
         loginScreen.style.display = "flex";
       }
+      if (userChip) userChip.style.display = "none";
+      if (btnAddSub) btnAddSub.style.display = "none";
+      if (btnAddCourt) btnAddCourt.style.display = "none";
+      if (btnAdmin) btnAdmin.style.display = "none";
+      if (btnLogout) btnLogout.style.display = "none";
+    }
       if (userChip) userChip.style.display = "none";
       if (btnAddSub) btnAddSub.style.display = "none";
       if (btnAddCourt) btnAddCourt.style.display = "none";
@@ -1420,6 +1420,20 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
+
+  // Exponer interfaz pública segura
+  window.App = {
+    state,
+    initMap,
+    renderDirectory,
+    updateMapMarkers,
+    showToast,
+    invalidateMap: function() {
+      if (state.map) {
+        state.map.invalidateSize();
+      }
+    }
+  };
 
   // Arranque inmediato
   document.addEventListener("DOMContentLoaded", init);

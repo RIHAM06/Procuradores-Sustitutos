@@ -66,9 +66,6 @@ class ProAppController {
                 loginScreen.classList.add('hidden');
                 loginScreen.style.display = 'none';
             }
-            if (appContainer) {
-                appContainer.style.display = 'flex';
-            }
 
             if (logoutBtn) logoutBtn.style.display = 'inline-flex';
             if (addSubBtn) addSubBtn.style.display = 'inline-flex';
@@ -91,16 +88,13 @@ class ProAppController {
             }
 
             // Notificar a Leaflet para ajustar dimensiones en la pantalla
-            if (window.App && window.App.map) {
+            if (window.App && typeof window.App.invalidateMap === 'function') {
                 setTimeout(() => {
-                    try { window.App.map.invalidateSize(); } catch (e) {}
-                }, 150);
+                    try { window.App.invalidateMap(); } catch (e) {}
+                }, 100);
             }
         } else {
-            // Usuario No Autenticado: Proteger datos y mostrar pantalla de acceso privado
-            if (appContainer) {
-                appContainer.style.display = 'none';
-            }
+            // Usuario No Autenticado: Cubrir con pantalla de acceso privado
             if (loginScreen) {
                 loginScreen.classList.remove('hidden');
                 loginScreen.style.display = 'flex';
