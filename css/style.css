@@ -101,8 +101,6 @@ body {
   box-sizing: border-box;
   animation: cardEntrance 0.35s ease-out;
 }
-  animation: cardEntrance 0.5s var(--transition-smooth);
-}
 
 @keyframes cardEntrance {
   from {

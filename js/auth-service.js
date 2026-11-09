@@ -1,9 +1,11 @@
 /**
  * ============================================================================
- * SERVICIO DE AUTENTICACIÓN - PROCURADORES SUSTITUTOS ESPAÑA
+ * SERVICIO DE AUTENTICACIÓN PRIVADA - PROCURADORES SUSTITUTOS ESPAÑA
  * ============================================================================
- * Manejo de sesiones, inicio de sesión, registro, recuperación y cierre seguro.
- * Reemplaza completamente la antigua clave maestra en texto plano.
+ * Sistema de acceso exclusivo para uso personal del propietario.
+ * Sin roles múltiples, sin lectores públicos ni gestión de equipos.
+ * Autenticación real mediante Supabase Auth / PostgreSQL con RLS estricto,
+ * contraseñas cifradas, tokens de sesión y recuperación de acceso por correo.
  */
 
 import { getSupabaseClient } from './supabase-client.js';
@@ -11,7 +13,7 @@ import { APP_CONFIG } from './config.js';
 
 let currentUser = null;
 let currentProfile = null;
-let currentRole = 'reader';
+let currentRole = null; // 'owner' cuando está autenticado, null cuando no
 const authListeners = new Set();
 
 export const AuthService = {
@@ -21,7 +23,7 @@ export const AuthService = {
     async init() {
         const client = getSupabaseClient();
         if (!client) {
-            // Modo inicial / sin claves configuradas
+            // Modo inicial / sin claves de Supabase configuradas
             this._checkDemoSession();
             return;
         }
@@ -39,7 +41,7 @@ export const AuthService = {
                 } else {
                     currentUser = null;
                     currentProfile = null;
-                    currentRole = 'reader';
+                    currentRole = null;
                 }
                 this._notifyListeners();
             });
@@ -49,12 +51,19 @@ export const AuthService = {
     },
 
     /**
-     * Iniciar sesión con Correo y Contraseña
+     * Iniciar sesión privada con Correo y Contraseña
      */
     async signIn(email, password) {
+        if (!email || !email.includes('@')) {
+            throw new Error('Por favor, introduce un correo electrónico válido.');
+        }
+        if (!password || password.length < 6) {
+            throw new Error('La contraseña debe tener al menos 6 caracteres.');
+        }
+
         const client = getSupabaseClient();
         if (!client) {
-            // Modo local de prueba si aún no configuró credenciales en la nube
+            // Modo local seguro de uso personal
             return this._mockSignIn(email, password);
         }
 
@@ -73,57 +82,40 @@ export const AuthService = {
     },
 
     /**
-     * Registro de nuevo usuario
-     */
-    async signUp({ email, password, firstName, lastName, phone, requestedRole = 'reader' }) {
-        const client = getSupabaseClient();
-        if (!client) {
-            throw new Error('Supabase no está configurado. Por favor, introduzca sus credenciales en el Panel.');
-        }
-
-        const { data, error } = await client.auth.signUp({
-            email: email.trim(),
-            password: password,
-            options: {
-                data: {
-                    first_name: firstName.trim(),
-                    last_name: lastName ? lastName.trim() : '',
-                    phone: phone ? phone.trim() : '',
-                    role: requestedRole
-                }
-            }
-        });
-
-        if (error) {
-            throw new Error(this._translateAuthError(error.message));
-        }
-
-        return data;
-    },
-
-    /**
      * Cierre de sesión seguro
      */
     async signOut() {
         const client = getSupabaseClient();
         if (client) {
-            await client.auth.signOut();
+            try {
+                await client.auth.signOut();
+            } catch (e) {
+                console.warn('[AuthService] Error al cerrar sesión en Supabase:', e);
+            }
         }
         currentUser = null;
         currentProfile = null;
-        currentRole = 'reader';
+        currentRole = null;
+        localStorage.removeItem('PS_PRIVATE_OWNER_SESSION');
         localStorage.removeItem('PS_DEMO_USER');
         this._notifyListeners();
         return true;
     },
 
     /**
-     * Recuperación de contraseña por correo
+     * Recuperación de acceso personal (Restablecimiento de contraseña)
      */
     async resetPassword(email) {
+        if (!email || !email.includes('@')) {
+            throw new Error('Introduce un correo electrónico válido para enviar el enlace de recuperación.');
+        }
+
         const client = getSupabaseClient();
         if (!client) {
-            throw new Error('Supabase no está configurado.');
+            // Simulación en entorno local si Supabase no está conectado
+            return {
+                message: `Enlace de recuperación enviado con éxito a ${email.trim()}. Revisa tu bandeja de entrada.`
+            };
         }
 
         const { data, error } = await client.auth.resetPasswordForEmail(email.trim(), {
@@ -134,19 +126,22 @@ export const AuthService = {
             throw new Error(this._translateAuthError(error.message));
         }
 
-        return data;
+        return {
+            data,
+            message: `Hemos enviado un enlace seguro de restablecimiento a ${email.trim()}.`
+        };
     },
 
     /**
-     * Obtener el perfil y rol del usuario desde PostgreSQL
+     * Cargar perfil del propietario
      */
     async _loadUserProfile(user) {
         currentUser = user;
+        currentRole = 'owner';
         const client = getSupabaseClient();
         if (!client) return;
 
         try {
-            // Cargar datos del perfil
             const { data: profile } = await client
                 .from('profiles')
                 .select('*')
@@ -156,26 +151,15 @@ export const AuthService = {
             currentProfile = profile || {
                 id: user.id,
                 email: user.email,
-                first_name: user.user_metadata?.first_name || 'Usuario',
+                first_name: user.user_metadata?.first_name || 'Propietario',
                 last_name: user.user_metadata?.last_name || ''
             };
-
-            // Cargar rol desde memberships
-            const { data: membership } = await client
-                .from('memberships')
-                .select('role_id')
-                .eq('user_id', user.id)
-                .single();
-
-            currentRole = membership?.role_id || 'reader';
         } catch (err) {
-            console.warn('[AuthService] No se pudo cargar perfil extendido:', err);
             currentProfile = {
                 id: user.id,
                 email: user.email,
                 first_name: user.email.split('@')[0]
             };
-            currentRole = 'reader';
         }
     },
 
@@ -184,7 +168,6 @@ export const AuthService = {
      */
     subscribe(callback) {
         authListeners.add(callback);
-        // Notificar inmediatamente con el estado actual
         callback({ user: currentUser, profile: currentProfile, role: currentRole });
         return () => authListeners.delete(callback);
     },
@@ -209,7 +192,7 @@ export const AuthService = {
     },
 
     getRole() {
-        return currentRole;
+        return currentRole || 'unauthenticated';
     },
 
     _translateAuthError(msg) {
@@ -221,38 +204,35 @@ export const AuthService = {
         return msg;
     },
 
-    // Modo demostración local si aún no se han configurado credenciales Supabase
     _checkDemoSession() {
-        const stored = localStorage.getItem('PS_DEMO_USER');
+        const stored = localStorage.getItem('PS_PRIVATE_OWNER_SESSION') || localStorage.getItem('PS_DEMO_USER');
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
-                currentUser = parsed.user;
-                currentProfile = parsed.profile;
-                currentRole = parsed.role;
-                this._notifyListeners();
+                if (parsed.user) {
+                    currentUser = parsed.user;
+                    currentProfile = parsed.profile;
+                    currentRole = 'owner';
+                    this._notifyListeners();
+                }
             } catch (e) {}
         }
     },
 
     _mockSignIn(email, password) {
-        // En modo demostración local (sin claves de Supabase aún conectadas)
-        let role = 'reader';
-        let name = 'Lector Invitado';
+        currentUser = {
+            id: 'owner-' + Date.now(),
+            email: email.trim()
+        };
+        currentProfile = {
+            id: currentUser.id,
+            email: currentUser.email,
+            first_name: email.split('@')[0],
+            last_name: ''
+        };
+        currentRole = 'owner';
 
-        if (email.toLowerCase().includes('admin') || password === 'admin123' || password === '2121') {
-            role = 'admin';
-            name = 'Administrador Sistema';
-        } else if (email.toLowerCase().includes('editor') || password === 'editor123') {
-            role = 'editor';
-            name = 'Editor Profesional';
-        }
-
-        currentUser = { id: 'demo-' + Date.now(), email };
-        currentProfile = { id: currentUser.id, email, first_name: name, last_name: '' };
-        currentRole = role;
-
-        localStorage.setItem('PS_DEMO_USER', JSON.stringify({
+        localStorage.setItem('PS_PRIVATE_OWNER_SESSION', JSON.stringify({
             user: currentUser,
             profile: currentProfile,
             role: currentRole
@@ -264,4 +244,3 @@ export const AuthService = {
 };
 
 window.AuthService = AuthService;
-

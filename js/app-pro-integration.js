@@ -2,14 +2,16 @@
  * ============================================================================
  * CONTROLADOR DE INTEGRACIÓN PROFESIONAL - PROCURADORES SUSTITUTOS ESPAÑA
  * ============================================================================
- * Conecta la arquitectura modular PostgreSQL + Supabase con la interfaz de usuario,
- * el mapa interactivo de Leaflet y los flujos de autenticación y administración.
+ * Sistema de seguridad y gestión privada de uso personal exclusivo.
+ * Conexión directa con PostgreSQL + Supabase Auth / RLS,
+ * autenticación real, pantalla de bloqueo privado, recuperación de acceso,
+ * control de sesiones seguras y sincronización de datos.
  */
 
 import { APP_CONFIG } from './config.js';
 import { getSupabaseClient, testConnection } from './supabase-client.js';
 import { AuthService } from './auth-service.js';
-import { RBACService, ROLES } from './rbac-service.js';
+import { RBACService } from './rbac-service.js';
 import { DatabaseService } from './database-service.js';
 import { RealtimeService } from './realtime-service.js';
 import { OfflineManager } from './offline-manager.js';
@@ -24,7 +26,7 @@ class ProAppController {
     }
 
     async init() {
-        console.log('[ProApp] Inicializando plataforma profesional v' + APP_CONFIG.version);
+        console.log('[ProApp] Inicializando plataforma privada v' + APP_CONFIG.version);
 
         // 1. Inicializar Gestor de Red y Conectividad
         OfflineManager.init();
@@ -41,14 +43,17 @@ class ProAppController {
         // 5. Vincular listeners de UI
         this.bindEvents();
 
-        // 6. Sincronizar datos iniciales con la capa visual existente
-        await this.syncInitialData();
+        // 6. Sincronizar datos iniciales si ya hay sesión activa
+        if (AuthService.isAuthenticated()) {
+            await this.syncInitialData();
+        }
 
         this.initialized = true;
     }
 
     handleAuthState({ user, profile, role }) {
-        const btnHeaderLogin = document.getElementById('btn-header-login');
+        const loginScreen = document.getElementById('login-screen') || document.getElementById('auth-modal');
+        const appContainer = document.getElementById('app-container');
         const userChip = document.getElementById('user-profile-chip');
         const adminBtn = document.getElementById('btn-open-admin-panel');
         const addSubBtn = document.getElementById('btn-open-add-modal');
@@ -56,8 +61,19 @@ class ProAppController {
         const logoutBtn = document.getElementById('btn-logout');
 
         if (user) {
-            if (btnHeaderLogin) btnHeaderLogin.style.display = 'none';
+            // Usuario Autenticado: Revelar plataforma privada
+            if (loginScreen) {
+                loginScreen.classList.add('hidden');
+                loginScreen.style.display = 'none';
+            }
+            if (appContainer) {
+                appContainer.style.display = 'flex';
+            }
+
             if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+            if (addSubBtn) addSubBtn.style.display = 'inline-flex';
+            if (addCourtBtn) addCourtBtn.style.display = 'inline-flex';
+            if (adminBtn) adminBtn.style.display = 'inline-flex';
 
             if (userChip) {
                 userChip.style.display = 'inline-flex';
@@ -65,21 +81,30 @@ class ProAppController {
                 const nameLabel = userChip.querySelector('.user-name-label');
                 const roleBadge = userChip.querySelector('.user-role-badge');
 
-                const initial = (profile?.first_name || user.email || 'U')[0].toUpperCase();
-                if (avatar) avatar.textContent = initial;
-                if (nameLabel) nameLabel.textContent = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || user.email;
+                const email = user.email || 'Propietario';
+                if (avatar) avatar.textContent = email[0].toUpperCase();
+                if (nameLabel) nameLabel.textContent = email;
                 if (roleBadge) {
-                    roleBadge.textContent = RBACService.getRoleLabel(role);
-                    roleBadge.className = `user-role-badge role-${role}`;
+                    roleBadge.textContent = 'Acceso Personal';
+                    roleBadge.className = 'user-role-badge role-admin';
                 }
             }
 
-            const isEditorOrAdmin = role === 'admin' || role === 'editor';
-            if (addSubBtn) addSubBtn.style.display = isEditorOrAdmin ? 'inline-flex' : 'none';
-            if (addCourtBtn) addCourtBtn.style.display = isEditorOrAdmin ? 'inline-flex' : 'none';
-            if (adminBtn) adminBtn.style.display = (role === 'admin') ? 'inline-flex' : 'none';
+            // Notificar a Leaflet para ajustar dimensiones en la pantalla
+            if (window.App && window.App.map) {
+                setTimeout(() => {
+                    try { window.App.map.invalidateSize(); } catch (e) {}
+                }, 150);
+            }
         } else {
-            if (btnHeaderLogin) btnHeaderLogin.style.display = 'inline-flex';
+            // Usuario No Autenticado: Proteger datos y mostrar pantalla de acceso privado
+            if (appContainer) {
+                appContainer.style.display = 'none';
+            }
+            if (loginScreen) {
+                loginScreen.classList.remove('hidden');
+                loginScreen.style.display = 'flex';
+            }
             if (userChip) userChip.style.display = 'none';
             if (addSubBtn) addSubBtn.style.display = 'none';
             if (addCourtBtn) addCourtBtn.style.display = 'none';
@@ -94,7 +119,6 @@ class ProAppController {
             const subs = await DatabaseService.getSubstitutes();
             if (subs && subs.length > 0 && window.DataService) {
                 console.log(`[ProApp] ${subs.length} procuradores sincronizados desde PostgreSQL`);
-                // Actualizar dataset visual en memoria
                 window.DataService.substitutes = subs.map(s => ({
                     id: s.id,
                     first_name: s.first_name,
@@ -110,131 +134,137 @@ class ProAppController {
                     rates: s.rates || []
                 }));
 
-                // Notificar a la vista
                 if (window.App && typeof window.App.renderDirectory === 'function') {
                     window.App.renderDirectory();
                 }
             }
         } catch (err) {
-            console.warn('[ProApp] Sincronización inicial en segundo plano:', err.message);
+            console.warn('[ProApp] Sincronización de datos privada:', err.message);
         }
     }
 
     bindEvents() {
-        // Formulario de Inicio de Sesión Moderno
+        // Formulario de Inicio de Sesión Privado
         const loginForm = document.getElementById('login-form');
         const loginErrorMsg = document.getElementById('login-error-msg');
         const emailInput = document.getElementById('login-email-input');
         const passInput = document.getElementById('password-input');
+        const btnTogglePass = document.getElementById('btn-toggle-password-visibility');
 
-        // Formulario de Inicio de Sesión
+        // Toggle Mostrar / Ocultar Contraseña
+        if (btnTogglePass && passInput) {
+            btnTogglePass.addEventListener('click', (e) => {
+                e.preventDefault();
+                const isPassword = passInput.getAttribute('type') === 'password';
+                passInput.setAttribute('type', isPassword ? 'text' : 'password');
+                btnTogglePass.innerHTML = isPassword ? `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/>
+                    </svg>
+                ` : `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                `;
+            });
+        }
+
+        // Envío de Formulario de Inicio de Sesión
         if (loginForm) {
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                loginErrorMsg.textContent = '';
-                const email = emailInput ? emailInput.value.trim() : 'admin@test.es';
+                if (loginErrorMsg) {
+                    loginErrorMsg.style.display = 'none';
+                    loginErrorMsg.textContent = '';
+                }
+                const email = emailInput ? emailInput.value.trim() : '';
                 const pass = passInput ? passInput.value : '';
 
                 try {
                     await AuthService.signIn(email, pass);
-                    this.showToast('Sesión iniciada correctamente');
-                    const authModal = document.getElementById('auth-modal');
-                    if (authModal) {
-                        authModal.classList.add('hidden');
-                        authModal.style.display = 'none';
+                    this.showToast('Acceso privado concedido');
+                    await this.syncInitialData();
+                } catch (err) {
+                    if (loginErrorMsg) {
+                        loginErrorMsg.textContent = err.message;
+                        loginErrorMsg.style.display = 'block';
+                    }
+                }
+            });
+        }
+
+        // Toggle Recuperación de Acceso
+        const btnToggleRecovery = document.getElementById('btn-toggle-recovery');
+        const btnRecoveryBack = document.getElementById('btn-recovery-back');
+        const loginSubcard = document.getElementById('login-subcard');
+        const recoverySubcard = document.getElementById('recovery-subcard');
+        const recoveryStatusMsg = document.getElementById('recovery-status-msg');
+
+        if (btnToggleRecovery && recoverySubcard && loginSubcard) {
+            btnToggleRecovery.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginSubcard.style.display = 'none';
+                recoverySubcard.style.display = 'block';
+                if (recoveryStatusMsg) recoveryStatusMsg.style.display = 'none';
+            });
+        }
+
+        if (btnRecoveryBack && recoverySubcard && loginSubcard) {
+            btnRecoveryBack.addEventListener('click', (e) => {
+                e.preventDefault();
+                recoverySubcard.style.display = 'none';
+                loginSubcard.style.display = 'block';
+            });
+        }
+
+        // Formulario de Recuperación de Acceso
+        const recoveryForm = document.getElementById('recovery-form');
+        const recoveryEmailInput = document.getElementById('recovery-email-input');
+        if (recoveryForm) {
+            recoveryForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = recoveryEmailInput ? recoveryEmailInput.value.trim() : '';
+                try {
+                    if (recoveryStatusMsg) {
+                        recoveryStatusMsg.style.display = 'block';
+                        recoveryStatusMsg.style.color = '#2563eb';
+                        recoveryStatusMsg.textContent = 'Enviando solicitud segura a Supabase...';
+                    }
+                    const result = await AuthService.resetPassword(email);
+                    if (recoveryStatusMsg) {
+                        recoveryStatusMsg.style.color = '#10b981';
+                        recoveryStatusMsg.textContent = result.message || 'Enlace de recuperación enviado correctamente.';
                     }
                 } catch (err) {
-                    loginErrorMsg.textContent = err.message;
+                    if (recoveryStatusMsg) {
+                        recoveryStatusMsg.style.color = '#ef4444';
+                        recoveryStatusMsg.textContent = err.message;
+                    }
                 }
             });
         }
 
-        // Botón Iniciar Sesión en la Cabecera
-        const btnHeaderLogin = document.getElementById('btn-header-login');
-        const authModal = document.getElementById('auth-modal');
-        const btnCloseAuth = document.getElementById('auth-modal-close-btn');
-
-        if (btnHeaderLogin && authModal) {
-            btnHeaderLogin.addEventListener('click', () => {
-                authModal.classList.remove('hidden');
-                authModal.style.display = 'flex';
-                if (emailInput) emailInput.focus();
-            });
-        }
-
-        if (btnCloseAuth && authModal) {
-            btnCloseAuth.addEventListener('click', () => {
-                authModal.classList.add('hidden');
-                authModal.style.display = 'none';
-            });
-        }
-
-        // Toggle entre Login y Registro
-        const btnToggleRegister = document.getElementById('btn-toggle-register');
-        const registerBox = document.getElementById('register-subcard');
-        const loginBox = document.getElementById('login-subcard');
-
-        if (btnToggleRegister && registerBox && loginBox) {
-            btnToggleRegister.addEventListener('click', (e) => {
-                e.preventDefault();
-                const isRegistering = registerBox.style.display !== 'none';
-                registerBox.style.display = isRegistering ? 'none' : 'block';
-                loginBox.style.display = isRegistering ? 'block' : 'none';
-            });
-        }
-
-        // Formulario de Registro
-        const registerForm = document.getElementById('register-form');
-        if (registerForm) {
-            registerForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const regEmail = document.getElementById('reg-email')?.value;
-                const regPass = document.getElementById('reg-pass')?.value;
-                const regFirst = document.getElementById('reg-first-name')?.value;
-                const regLast = document.getElementById('reg-last-name')?.value;
-                const regPhone = document.getElementById('reg-phone')?.value;
-                const regRole = document.getElementById('reg-role')?.value || 'reader';
-                const errorEl = document.getElementById('register-error-msg');
-
-                try {
-                    errorEl.textContent = '';
-                    await AuthService.signUp({
-                        email: regEmail,
-                        password: regPass,
-                        firstName: regFirst,
-                        lastName: regLast,
-                        phone: regPhone,
-                        requestedRole: regRole
-                    });
-                    this.showToast('Registro enviado. Comprueba tu correo o inicia sesión.');
-                    registerBox.style.display = 'none';
-                    loginBox.style.display = 'block';
-                } catch (err) {
-                    errorEl.textContent = err.message;
-                }
-            });
-        }
-
-        // Cierre de Sesión
+        // Cierre de Sesión Seguro
         const btnLogout = document.getElementById('btn-logout');
         if (btnLogout) {
             btnLogout.addEventListener('click', async () => {
-                if (confirm('¿Deseas cerrar la sesión de forma segura?')) {
+                if (confirm('¿Deseas cerrar la sesión de tu panel personal?')) {
                     await AuthService.signOut();
-                    this.showToast('Sesión cerrada correctamente');
+                    this.showToast('Sesión privada finalizada');
                 }
             });
         }
 
-        // Botón Abrir Panel de Administración
+        // Botón Abrir Panel de Ajustes Privados
         const btnAdmin = document.getElementById('btn-open-admin-panel');
         const adminModal = document.getElementById('admin-panel-modal');
         const btnCloseAdmin = document.getElementById('admin-modal-close-btn');
 
         if (btnAdmin && adminModal) {
             btnAdmin.addEventListener('click', () => {
-                if (!RBACService.isAdmin()) {
-                    alert('Acceso no autorizado: Solo administradores pueden ver este panel.');
+                if (!AuthService.isAuthenticated()) {
+                    alert('Debes iniciar sesión para acceder a los ajustes privados.');
                     return;
                 }
                 this.loadAdminPanelData();
@@ -248,7 +278,7 @@ class ProAppController {
             });
         }
 
-        // Tabs del Panel de Administración
+        // Navegación por Pestañas del Panel de Ajustes
         const tabBtns = document.querySelectorAll('.admin-tab-btn');
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -261,27 +291,27 @@ class ProAppController {
             });
         });
 
-        // Configuración de Supabase en Admin Panel
+        // Configuración de Credenciales Supabase
         const btnSaveSupabase = document.getElementById('btn-save-supabase-config');
         if (btnSaveSupabase) {
             btnSaveSupabase.addEventListener('click', async () => {
                 const url = document.getElementById('admin-supabase-url')?.value;
                 const key = document.getElementById('admin-supabase-key')?.value;
                 if (!url || !key) {
-                    alert('Por favor introduzca tanto la URL como la Clave Anónima Pública.');
+                    alert('Por favor introduce la URL del proyecto y la Clave Anónima.');
                     return;
                 }
                 APP_CONFIG.updateSupabaseCredentials(url, key);
-                alert('Credenciales de Supabase actualizadas. Verificando conexión...');
+                alert('Credenciales de Supabase actualizadas. Verificando conexión en PostgreSQL...');
                 await OfflineManager.checkServer();
             });
         }
 
-        // Migración desde LocalStorage
+        // Herramienta de Migración LocalStorage -> PostgreSQL
         const btnRunMigration = document.getElementById('btn-run-migration');
         if (btnRunMigration) {
             btnRunMigration.addEventListener('click', async () => {
-                if (!confirm('¿Deseas migrar todos los datos locales almacenados a PostgreSQL?')) return;
+                if (!confirm('¿Deseas migrar todos tus datos almacenados localmente a PostgreSQL?')) return;
                 try {
                     btnRunMigration.disabled = true;
                     btnRunMigration.textContent = 'Migrando...';
@@ -298,7 +328,7 @@ class ProAppController {
             });
         }
 
-        // Exportación de Backup JSON
+        // Exportación de Copia de Seguridad JSON
         const btnExportBackup = document.getElementById('btn-export-backup-admin');
         if (btnExportBackup) {
             btnExportBackup.addEventListener('click', async () => {
@@ -311,97 +341,62 @@ class ProAppController {
             });
         }
 
-        // Importación de Backup JSON
-        const inputImportBackup = document.getElementById('admin-import-file');
-        if (inputImportBackup) {
-            inputImportBackup.addEventListener('change', async (e) => {
-                const file = e.target.files?.[0];
+        // Importación de Copia de Seguridad JSON
+        const importFileInput = document.getElementById('admin-import-file');
+        if (importFileInput) {
+            importFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = async (evt) => {
-                    try {
-                        const content = evt.target?.result;
-                        const res = await BackupService.importBackup(content);
-                        alert(res.message);
-                        await this.syncInitialData();
-                    } catch (err) {
-                        alert('Error al restaurar: ' + err.message);
-                    }
-                };
-                reader.readAsText(file);
+
+                if (!confirm(`¿Restaurar copia de seguridad desde "${file.name}"? Los datos se sincronizarán con PostgreSQL.`)) {
+                    importFileInput.value = '';
+                    return;
+                }
+
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        try {
+                            const jsonData = JSON.parse(event.target.result);
+                            const res = await BackupService.importBackup(jsonData);
+                            alert(`Restauración completada con éxito. Registros importados: ${res.imported_records}`);
+                            await this.syncInitialData();
+                        } catch (parseErr) {
+                            alert('Archivo de copia de seguridad no válido: ' + parseErr.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                } catch (err) {
+                    alert('Error al leer el archivo: ' + err.message);
+                }
             });
         }
-
-        // Escuchar eventos de Realtime para refrescar
-        window.addEventListener('realtime:substitute-change', () => this.syncInitialData());
-        window.addEventListener('realtime:court-change', () => this.syncInitialData());
     }
 
     async loadAdminPanelData() {
-        this.loadAdminUsersTab();
         this.loadAdminAuditTab();
         this.loadAdminMigrationTab();
         this.loadAdminConfigTab();
     }
 
-    async loadAdminUsersTab() {
-        const tableBody = document.getElementById('admin-users-table-body');
-        if (!tableBody) return;
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando usuarios...</td></tr>';
-
-        try {
-            const users = await RBACService.listUsers();
-            tableBody.innerHTML = '';
-            users.forEach(u => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${u.first_name} ${u.last_name || ''}</strong></td>
-                    <td>${u.email}</td>
-                    <td>
-                        <select class="pro-form-select user-role-changer" data-user-id="${u.id}" style="padding:4px 8px; font-size:0.8rem;">
-                            <option value="admin" ${u.role_id === 'admin' ? 'selected' : ''}>Administrador</option>
-                            <option value="editor" ${u.role_id === 'editor' ? 'selected' : ''}>Editor</option>
-                            <option value="reader" ${u.role_id === 'reader' ? 'selected' : ''}>Lector</option>
-                        </select>
-                    </td>
-                    <td><span class="status-pill status-connected">${u.status || 'Activo'}</span></td>
-                    <td><small style="color:#64748b;">${new Date(u.created_at).toLocaleDateString()}</small></td>
-                `;
-                tableBody.appendChild(tr);
-            });
-
-            // Asignar listeners a selectores de roles
-            tableBody.querySelectorAll('.user-role-changer').forEach(select => {
-                select.addEventListener('change', async (e) => {
-                    const userId = e.target.getAttribute('data-user-id');
-                    const newRole = e.target.value;
-                    try {
-                        await RBACService.updateUserRole(userId, newRole);
-                        this.showToast('Rol actualizado correctamente');
-                    } catch (err) {
-                        alert('Error al cambiar rol: ' + err.message);
-                    }
-                });
-            });
-        } catch (err) {
-            tableBody.innerHTML = `<tr><td colspan="5" style="color:#ef4444;">${err.message}</td></tr>`;
-        }
-    }
-
     async loadAdminAuditTab() {
         const tableBody = document.getElementById('admin-audit-table-body');
         if (!tableBody) return;
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando registro de auditoría...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando registro de actividad...</td></tr>';
 
         try {
             const logs = await AuditService.getLogs({ limit: 40 });
             tableBody.innerHTML = '';
+            if (logs.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b;">No hay registros de auditoría aún.</td></tr>';
+                return;
+            }
             logs.forEach(l => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${l.action}</strong></td>
                     <td><code>${l.table_name}</code></td>
-                    <td>${l.user_email || 'Sistema'}</td>
+                    <td>${l.user_email || 'Propietario'}</td>
                     <td><small>${new Date(l.created_at).toLocaleString()}</small></td>
                     <td><code style="font-size:0.75rem;">${JSON.stringify(l.new_data || l.old_data || {}).slice(0, 60)}...</code></td>
                 `;
@@ -412,23 +407,21 @@ class ProAppController {
         }
     }
 
-    loadAdminMigrationTab() {
-        const statusBox = document.getElementById('migration-status-box');
-        if (!statusBox) return;
-        const check = MigrationService.detectLegacyData();
-        if (check.hasLegacyData) {
-            statusBox.innerHTML = `
-                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:14px;">
-                    <p style="margin:0 0 8px 0; color:#1e40af; font-weight:600;">
-                        📦 Se han detectado ${check.totalRecords} registros antiguos en LocalStorage listos para migrar a PostgreSQL.
-                    </p>
-                    <small style="color:#475569;">La migración garantizará que los datos estén centralizados y accesibles desde cualquier navegador o móvil.</small>
+    async loadAdminMigrationTab() {
+        const statusEl = document.getElementById('migration-scan-result');
+        if (!statusEl) return;
+        const scan = MigrationService.scanLocalStorage();
+        if (scan.totalCount === 0) {
+            statusEl.innerHTML = `
+                <div style="background:#ecfdf5; border:1px solid #10b981; border-radius:8px; padding:12px; color:#065f46;">
+                    ✓ <strong>Base de datos limpia:</strong> No existen registros residuales en LocalStorage. Toda la información reside en PostgreSQL.
                 </div>
             `;
         } else {
-            statusBox.innerHTML = `
-                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:14px; color:#166534;">
-                    ✅ No hay datos huérfanos en LocalStorage. La base de datos centralizada de PostgreSQL es la única fuente de información.
+            statusEl.innerHTML = `
+                <div style="background:#fffbeb; border:1px solid #f59e0b; border-radius:8px; padding:12px; color:#92400e;">
+                    ⚠ <strong>Se han detectado ${scan.totalCount} registros en LocalStorage</strong> (${scan.substitutesCount} procuradores, ${scan.courtsCount} juzgados).
+                    Pulsa el botón inferior para sincronizarlos con PostgreSQL.
                 </div>
             `;
         }
@@ -437,24 +430,31 @@ class ProAppController {
     loadAdminConfigTab() {
         const urlInput = document.getElementById('admin-supabase-url');
         const keyInput = document.getElementById('admin-supabase-key');
-        if (urlInput) urlInput.value = APP_CONFIG.supabase.url;
-        if (keyInput) keyInput.value = APP_CONFIG.supabase.anonKey;
+        if (urlInput && APP_CONFIG.supabase.url) {
+            urlInput.value = APP_CONFIG.supabase.url;
+        }
+        if (keyInput && APP_CONFIG.supabase.anonKey) {
+            keyInput.value = APP_CONFIG.supabase.anonKey;
+        }
     }
 
     showToast(message) {
-        const toast = document.getElementById('toast-notification');
-        const toastMsg = document.getElementById('toast-message');
-        if (toast && toastMsg) {
-            toastMsg.textContent = message;
-            toast.className = 'show';
-            setTimeout(() => { toast.className = ''; }, 3500);
+        if (window.App && typeof window.App.showToast === 'function') {
+            window.App.showToast(message);
+        } else {
+            const toast = document.getElementById('toast-notification');
+            const msgEl = document.getElementById('toast-message');
+            if (toast && msgEl) {
+                msgEl.textContent = message;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3500);
+            }
         }
     }
 }
 
-// Iniciar aplicación profesional
+// Inicializar en DOMContentLoaded
 window.ProApp = new ProAppController();
 document.addEventListener('DOMContentLoaded', () => {
     window.ProApp.init();
 });
-

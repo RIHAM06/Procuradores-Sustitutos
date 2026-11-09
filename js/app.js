@@ -138,7 +138,7 @@
   }
 
   // ==========================================================================
-  // 1. SISTEMA DE AUTENTICACIÓN Y SEGURIDAD (SUPABASE AUTH + ROLES)
+  // 1. SISTEMA DE AUTENTICACIÓN Y SEGURIDAD PRIVADA (SUPABASE AUTH)
   // ==========================================================================
   function setupAuth() {
     // Escuchar cambios de estado desde window.AuthService
@@ -147,111 +147,11 @@
         updateAuthUI(user, profile, role);
       });
     }
-
-    // Botón Iniciar Sesión en la Cabecera
-    const btnHeaderLogin = document.getElementById("btn-header-login");
-    if (btnHeaderLogin) {
-      btnHeaderLogin.addEventListener("click", () => openAuthModal());
-    }
-
-    // Botón Cerrar Modal de Autenticación
-    const btnCloseAuth = document.getElementById("auth-modal-close-btn");
-    if (btnCloseAuth) {
-      btnCloseAuth.addEventListener("click", () => closeAuthModal());
-    }
-
-    // Toggle entre Iniciar Sesión y Registrarse
-    const btnToggleRegister = document.getElementById("btn-toggle-register");
-    const btnToggleLoginBack = document.getElementById("btn-toggle-login-back");
-    const loginSubcard = document.getElementById("login-subcard");
-    const registerSubcard = document.getElementById("register-subcard");
-
-    if (btnToggleRegister && loginSubcard && registerSubcard) {
-      btnToggleRegister.addEventListener("click", (e) => {
-        e.preventDefault();
-        loginSubcard.style.display = "none";
-        registerSubcard.style.display = "block";
-      });
-    }
-
-    if (btnToggleLoginBack && loginSubcard && registerSubcard) {
-      btnToggleLoginBack.addEventListener("click", (e) => {
-        e.preventDefault();
-        registerSubcard.style.display = "none";
-        loginSubcard.style.display = "block";
-      });
-    }
-
-    // Formulario de Inicio de Sesión
-    if (dom.loginForm) {
-      dom.loginForm.addEventListener("submit", async function (e) {
-        e.preventDefault();
-        const emailInput = document.getElementById("login-email-input");
-        const email = emailInput ? emailInput.value.trim() : "admin@test.es";
-        const password = dom.passwordInput ? dom.passwordInput.value.trim() : "";
-
-        try {
-          if (dom.loginErrorMsg) dom.loginErrorMsg.textContent = "";
-          if (window.AuthService) {
-            await window.AuthService.signIn(email, password);
-          }
-          closeAuthModal();
-          showToast("Sesión iniciada correctamente");
-        } catch (err) {
-          if (dom.loginErrorMsg) dom.loginErrorMsg.textContent = err.message || "Error al iniciar sesión.";
-        }
-      });
-    }
-
-    // Formulario de Registro
-    const registerForm = document.getElementById("register-form");
-    if (registerForm) {
-      registerForm.addEventListener("submit", async function (e) {
-        e.preventDefault();
-        const regEmail = document.getElementById("reg-email")?.value;
-        const regPass = document.getElementById("reg-pass")?.value;
-        const regFirst = document.getElementById("reg-first-name")?.value;
-        const regLast = document.getElementById("reg-last-name")?.value;
-        const regPhone = document.getElementById("reg-phone")?.value;
-        const regRole = document.getElementById("reg-role")?.value || "reader";
-        const errorEl = document.getElementById("register-error-msg");
-
-        try {
-          if (errorEl) errorEl.textContent = "";
-          if (window.AuthService) {
-            await window.AuthService.signUp({
-              email: regEmail,
-              password: regPass,
-              firstName: regFirst,
-              lastName: regLast,
-              phone: regPhone,
-              requestedRole: regRole
-            });
-          }
-          showToast("Cuenta creada con éxito");
-          if (registerSubcard) registerSubcard.style.display = "none";
-          if (loginSubcard) loginSubcard.style.display = "block";
-        } catch (err) {
-          if (errorEl) errorEl.textContent = err.message;
-        }
-      });
-    }
-
-    // Cierre de Sesión
-    if (dom.btnLogout) {
-      dom.btnLogout.addEventListener("click", async function () {
-        if (confirm("¿Deseas cerrar la sesión de trabajo?")) {
-          if (window.AuthService) {
-            await window.AuthService.signOut();
-          }
-          showToast("Sesión cerrada");
-        }
-      });
-    }
   }
 
   function updateAuthUI(user, profile, role) {
-    const btnHeaderLogin = document.getElementById("btn-header-login");
+    const loginScreen = document.getElementById("login-screen") || document.getElementById("auth-modal");
+    const appContainer = document.getElementById("app-container");
     const userChip = document.getElementById("user-profile-chip");
     const btnAddSub = document.getElementById("btn-open-add-modal");
     const btnAddCourt = document.getElementById("btn-open-add-court-modal");
@@ -260,11 +160,21 @@
 
     const isAuthenticated = !!user;
     state.isAuthenticated = isAuthenticated;
-    state.userRole = role || "reader";
+    state.userRole = isAuthenticated ? "owner" : "unauthenticated";
 
     if (isAuthenticated) {
-      if (btnHeaderLogin) btnHeaderLogin.style.display = "none";
+      if (loginScreen) {
+        loginScreen.classList.add("hidden");
+        loginScreen.style.display = "none";
+      }
+      if (appContainer) {
+        appContainer.style.display = "flex";
+      }
+
       if (btnLogout) btnLogout.style.display = "inline-flex";
+      if (btnAddSub) btnAddSub.style.display = "inline-flex";
+      if (btnAddCourt) btnAddCourt.style.display = "inline-flex";
+      if (btnAdmin) btnAdmin.style.display = "inline-flex";
 
       if (userChip) {
         userChip.style.display = "inline-flex";
@@ -272,22 +182,28 @@
         const nameLabel = userChip.querySelector(".user-name-label");
         const roleBadge = userChip.querySelector(".user-role-badge");
 
-        const initial = (profile?.first_name || user.email || "U")[0].toUpperCase();
-        if (avatar) avatar.textContent = initial;
-        if (nameLabel) nameLabel.textContent = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || user.email;
+        const email = user.email || "Propietario";
+        if (avatar) avatar.textContent = email[0].toUpperCase();
+        if (nameLabel) nameLabel.textContent = email;
         if (roleBadge) {
-          const roleLabels = { admin: "Administrador", editor: "Editor", reader: "Lector" };
-          roleBadge.textContent = roleLabels[role] || "Lector";
-          roleBadge.className = `user-role-badge role-${role}`;
+          roleBadge.textContent = "Acceso Personal";
+          roleBadge.className = "user-role-badge role-admin";
         }
       }
 
-      const isEditorOrAdmin = role === "admin" || role === "editor";
-      if (btnAddSub) btnAddSub.style.display = isEditorOrAdmin ? "inline-flex" : "none";
-      if (btnAddCourt) btnAddCourt.style.display = isEditorOrAdmin ? "inline-flex" : "none";
-      if (btnAdmin) btnAdmin.style.display = (role === "admin") ? "inline-flex" : "none";
+      if (state.map) {
+        setTimeout(() => {
+          try { state.map.invalidateSize(); } catch (e) {}
+        }, 150);
+      }
     } else {
-      if (btnHeaderLogin) btnHeaderLogin.style.display = "inline-flex";
+      if (appContainer) {
+        appContainer.style.display = "none";
+      }
+      if (loginScreen) {
+        loginScreen.classList.remove("hidden");
+        loginScreen.style.display = "flex";
+      }
       if (userChip) userChip.style.display = "none";
       if (btnAddSub) btnAddSub.style.display = "none";
       if (btnAddCourt) btnAddCourt.style.display = "none";

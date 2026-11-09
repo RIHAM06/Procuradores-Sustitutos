@@ -27,9 +27,11 @@
   <!-- ==========================================================================
        MODAL DE AUTENTICACIÓN (SUPABASE AUTH + GESTIÓN DE ROLES)
        ========================================================================== -->
-  <div id="auth-modal" class="auth-modal-backdrop hidden" style="display: none;">
+  <!-- ==========================================================================
+       PANTALLA DE ACCESO PRIVADO (USO PERSONAL EXCLUSIVO - SUPABASE AUTH)
+       ========================================================================== -->
+  <div id="login-screen" class="auth-modal-backdrop">
     <div class="login-card" style="position: relative;">
-      <button type="button" id="auth-modal-close-btn" class="pro-modal-close" style="position: absolute; top: 12px; right: 14px; font-size: 1.4rem; background: none; border: none; cursor: pointer; color: #64748b;">✕</button>
       
       <div class="login-icon-wrapper" style="margin-top: 6px;">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -37,29 +39,31 @@
           <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
       </div>
-      <span class="login-badge">PostgreSQL • Supabase Auth</span>
-      <h2 class="login-title" style="font-size: 1.3rem; margin: 8px 0 4px 0;">Acceso a Procuradores</h2>
-      <p class="login-subtitle" style="font-size: 0.85rem; margin-bottom: 16px;">Sincronizado en tiempo real para la Red de Procuradores de España.</p>
+      <span class="login-badge" style="background: rgba(37, 99, 235, 0.1); color: #2563eb; font-weight: 700;">🔐 ACCESO PERSONAL EXCLUSIVO</span>
+      <h2 class="login-title" style="font-size: 1.35rem; margin: 8px 0 4px 0;">Procuradores Sustitutos</h2>
+      <p class="login-subtitle" style="font-size: 0.85rem; margin-bottom: 18px; color: #64748b;">
+        Plataforma privada y segura. Introduce tus credenciales para acceder a tus datos.
+      </p>
 
-      <!-- Subtarjeta 1: Iniciar Sesión -->
+      <!-- Subtarjeta 1: Iniciar Sesión Privada -->
       <div id="login-subcard">
         <form id="login-form" class="login-form" autocomplete="on">
-          <div class="pro-form-group">
+          <div class="pro-form-group" style="text-align: left;">
             <label class="pro-form-label" for="login-email-input">Correo Electrónico</label>
             <input 
               type="email" 
               id="login-email-input" 
               class="pro-form-input" 
-              placeholder="admin@test.es" 
+              placeholder="tu.correo@ejemplo.es" 
               value="admin@test.es"
               required 
               autocomplete="email"
             >
           </div>
 
-          <div class="pro-form-group">
+          <div class="pro-form-group" style="text-align: left;">
             <label class="pro-form-label" for="password-input">Contraseña</label>
-            <div class="password-input-wrapper">
+            <div class="password-input-wrapper" style="position: relative; display: flex; align-items: center;">
               <span class="input-icon-left">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="m21 2-2 2m-1.5 1.5L14 9l-3 3-2-2L3 16l5 5 6-6-2-2 3.5-3.5M16 5l3 3"/>
@@ -72,14 +76,26 @@
                 value="admin123"
                 required 
                 autocomplete="current-password"
+                style="padding-right: 42px;"
               >
+              <button 
+                type="button" 
+                id="btn-toggle-password-visibility" 
+                title="Mostrar u ocultar contraseña" 
+                style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; padding: 4px;"
+              >
+                <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
             </div>
           </div>
 
-          <div id="login-error-msg" class="login-error-msg"></div>
+          <div id="login-error-msg" class="login-error-msg" style="display: none; margin-bottom: 10px;"></div>
 
           <button type="submit" class="login-btn" id="btn-submit-login">
-            <span>Iniciar Sesión</span>
+            <span>Acceder a mi Panel Privado</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="5" y1="12" x2="19" y2="12"></line>
               <polyline points="12 5 19 12 12 19"></polyline>
@@ -88,61 +104,50 @@
         </form>
 
         <div style="margin-top: 14px; text-align: center; font-size: 0.85rem;">
-          <a href="#" id="btn-toggle-register" style="color: #2563eb; text-decoration: none; font-weight: 600;">
-            ¿No tienes cuenta? Regístrate aquí
+          <a href="#" id="btn-toggle-recovery" style="color: #2563eb; text-decoration: none; font-weight: 600;">
+            ¿Olvidaste tu contraseña? Recuperar acceso
           </a>
         </div>
       </div>
 
-      <!-- Subtarjeta 2: Registro de Nuevo Usuario -->
-      <div id="register-subcard" style="display: none; text-align: left;">
-        <h3 style="font-size: 1rem; color: #0f172a; margin-top: 0; margin-bottom: 12px; font-weight: 700;">Crear Nueva Cuenta</h3>
-        <form id="register-form" autocomplete="off">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div class="pro-form-group">
-              <label class="pro-form-label">Nombre</label>
-              <input type="text" id="reg-first-name" class="pro-form-input" placeholder="Nombre" required>
-            </div>
-            <div class="pro-form-group">
-              <label class="pro-form-label">Apellidos</label>
-              <input type="text" id="reg-last-name" class="pro-form-input" placeholder="Apellidos">
-            </div>
-          </div>
+      <!-- Subtarjeta 2: Recuperación de Acceso Personal -->
+      <div id="recovery-subcard" style="display: none; text-align: left;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+            <rect width="20" height="16" x="2" y="4" rx="2"/>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+          </svg>
+          <h3 style="font-size: 1.05rem; color: #0f172a; margin: 0; font-weight: 700;">Recuperar Acceso Personal</h3>
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b; margin-top: 0; margin-bottom: 14px; line-height: 1.4;">
+          Introduce tu correo registrado para recibir las instrucciones de restablecimiento de contraseña.
+        </p>
 
+        <form id="recovery-form" autocomplete="on">
           <div class="pro-form-group">
-            <label class="pro-form-label">Correo Electrónico</label>
-            <input type="email" id="reg-email" class="pro-form-input" placeholder="tu.nombre@colegio.es" required>
+            <label class="pro-form-label" for="recovery-email-input">Correo Electrónico</label>
+            <input 
+              type="email" 
+              id="recovery-email-input" 
+              class="pro-form-input" 
+              placeholder="tu.correo@ejemplo.es" 
+              required
+            >
           </div>
 
-          <div class="pro-form-group">
-            <label class="pro-form-label">Contraseña</label>
-            <input type="password" id="reg-pass" class="pro-form-input" placeholder="Mínimo 6 caracteres" minlength="6" required>
-          </div>
+          <div id="recovery-status-msg" class="login-error-msg" style="display: none; margin-bottom: 12px;"></div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div class="pro-form-group">
-              <label class="pro-form-label">Teléfono Móvil</label>
-              <input type="tel" id="reg-phone" class="pro-form-input" placeholder="+34 600 000 000">
-            </div>
-            <div class="pro-form-group">
-              <label class="pro-form-label">Rol Solicitado</label>
-              <select id="reg-role" class="pro-form-select">
-                <option value="reader">Lector (Solo Consulta)</option>
-                <option value="editor">Editor (Crear / Modificar)</option>
-                <option value="admin">Administrador</option>
-              </select>
-            </div>
-          </div>
-
-          <div id="register-error-msg" class="login-error-msg"></div>
-
-          <button type="submit" class="login-btn" style="background: #10b981;">
-            <span>Crear Cuenta en Supabase</span>
+          <button type="submit" class="login-btn" id="btn-submit-recovery" style="background: #2563eb;">
+            <span>Enviar Enlace de Recuperación</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
           </button>
         </form>
 
-        <div style="margin-top: 12px; text-align: center; font-size: 0.85rem;">
-          <a href="#" id="btn-toggle-login-back" style="color: #64748b; text-decoration: none;">
+        <div style="margin-top: 14px; text-align: center; font-size: 0.85rem;">
+          <a href="#" id="btn-recovery-back" style="color: #64748b; text-decoration: none; font-weight: 600;">
             ← Volver al inicio de sesión
           </a>
         </div>
@@ -150,18 +155,18 @@
       
       <div class="login-footer-info" style="margin-top: 16px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/>
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
-        <span>Sesión persistente y sincronizada en tiempo real mediante Supabase</span>
+        <span>Seguridad y RLS protegidos en backend mediante Supabase Auth</span>
       </div>
     </div>
   </div>
 
   <!-- ==========================================================================
-       APLICACIÓN PRINCIPAL (MAPA INTERACTIVO Y DIRECTORIO)
+       APLICACIÓN PRINCIPAL PRIVADA (MAPA INTERACTIVO Y DIRECTORIO)
        ========================================================================== -->
-  <div id="app-container">
+  <div id="app-container" style="display: none;">
     
     <!-- CABECERA PRINCIPAL -->
     <header class="app-header">
@@ -610,39 +615,23 @@
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          <span>Panel de Administración • Procuradores Sustitutos</span>
+          <span>Ajustes y Panel de Control Privado</span>
         </h3>
         <button class="pro-modal-close" id="admin-modal-close-btn">✕</button>
       </div>
 
       <div class="pro-modal-body">
         <nav class="admin-tabs-nav">
-          <button class="admin-tab-btn active" data-tab="tab-admin-users">👥 Usuarios y Roles</button>
+          <button class="admin-tab-btn active" data-tab="tab-admin-config">⚙️ Conexión Supabase</button>
+          <button class="admin-tab-btn" data-tab="tab-admin-backup">💾 Copias de Seguridad</button>
           <button class="admin-tab-btn" data-tab="tab-admin-audit">📜 Registro de Auditoría</button>
           <button class="admin-tab-btn" data-tab="tab-admin-migration">📦 Migración LocalStorage</button>
-          <button class="admin-tab-btn" data-tab="tab-admin-backup">💾 Copias de Seguridad</button>
-          <button class="admin-tab-btn" data-tab="tab-admin-config">⚙️ Conexión Supabase</button>
         </nav>
 
-        <!-- Tab 1: Usuarios y Roles -->
-        <div class="admin-tab-content active" id="tab-admin-users">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <p style="margin:0; font-size:0.85rem; color:#64748b;">
-              Gestión de permisos RBAC: Asignación de roles <strong>Administrador</strong>, <strong>Editor</strong> o <strong>Lector</strong>.
-            </p>
-          </div>
-          <div style="overflow-x:auto;">
-            <table class="admin-data-table">
-              <thead>
-                <tr>
-                  <th>Nombre y Apellidos</th>
-                  <th>Correo Electrónico</th>
-                  <th>Rol Asignado</th>
-                  <th>Estado</th>
-                  <th>Fecha Alta</th>
-                </tr>
-              </thead>
-              <tbody id="admin-users-table-body">
+        <!-- Tab Oculto de compatibilidad interna para scripts -->
+        <div class="admin-tab-content" id="tab-admin-users" style="display: none;">
+          <tbody id="admin-users-table-body"></tbody>
+        </div>
                 <!-- Rellenado dinámicamente -->
               </tbody>
             </table>
@@ -706,7 +695,7 @@
         </div>
 
         <!-- Tab 5: Conexión Supabase -->
-        <div class="admin-tab-content" id="tab-admin-config">
+        <div class="admin-tab-content active" id="tab-admin-config">
           <p style="font-size:0.85rem; color:#64748b; margin-bottom:16px;">
             Configure las credenciales de su proyecto Supabase en la nube. Las claves se validarán con PostgreSQL en tiempo real.
           </p>

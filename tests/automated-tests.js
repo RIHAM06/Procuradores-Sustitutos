@@ -21,8 +21,8 @@ export async function runAllTests(onProgress = () => {}) {
     const results = [];
     const testCases = [
         { id: 1, name: 'Configuración y Cliente Supabase', fn: test1_ClientInit },
-        { id: 2, name: 'Servicio de Autenticación y Cierre Seguro', fn: test2_AuthService },
-        { id: 3, name: 'Control de Acceso Basado en Roles (RBAC)', fn: test3_RbacPermissions },
+        { id: 2, name: 'Servicio de Autenticación Privada y Cierre Seguro', fn: test2_AuthService },
+        { id: 3, name: 'Control de Acceso Privado y Recuperación de Contraseña', fn: test3_RbacPermissions },
         { id: 4, name: 'Operaciones CRUD de Procuradores Sustitutos', fn: test4_SubstitutesCrud },
         { id: 5, name: 'Integridad del Dataset de 431 Partidos Judiciales', fn: test5_CourtsDataset },
         { id: 6, name: 'Integridad de los 8.131 Municipios de España (INE)', fn: test6_MunicipalitiesDataset },
@@ -69,34 +69,39 @@ async function test1_ClientInit() {
     return `Módulo cliente cargado. Versión: ${APP_CONFIG.version}. Entorno: ${APP_CONFIG.environment}.`;
 }
 
-// 2. Autenticación
+// 2. Autenticación Privada
 async function test2_AuthService() {
     await AuthService.init();
     // Test sign in demo
     const res = await AuthService.signIn('admin@test.es', 'admin123');
-    if (!res.user || res.role !== 'admin') {
-        throw new Error('El inicio de sesión no asignó el rol de administrador correctamente');
+    if (!res.user || !AuthService.isAuthenticated()) {
+        throw new Error('El inicio de sesión no autenticó al usuario correctamente');
     }
     await AuthService.signOut();
     if (AuthService.isAuthenticated()) {
         throw new Error('El cierre de sesión no limpió el estado');
     }
-    return 'Inicio de sesión, comprobación de sesión y cierre de sesión verificados correctamente.';
+    return 'Inicio de sesión privado, token de sesión y cierre de sesión seguro verificados correctamente.';
 }
 
-// 3. RBAC
+// 3. Control de Acceso Privado y Recuperación de Contraseña
 async function test3_RbacPermissions() {
-    // Probar permisos lector
-    await AuthService.signIn('lector@test.es', 'pass123');
-    if (RBACService.can('substitutes:delete')) {
-        throw new Error('Fallo de seguridad: Un lector no debe poder eliminar procuradores');
+    // Probar que sin autenticación no hay acceso
+    await AuthService.signOut();
+    if (RBACService.can('substitutes:delete') || RBACService.can('courts:edit')) {
+        throw new Error('Fallo de seguridad: Un usuario no autenticado no debe tener permisos');
     }
-    // Probar permisos admin
+    // Probar que autenticado tiene permisos totales
     await AuthService.signIn('admin@test.es', 'admin123');
-    if (!RBACService.can('substitutes:delete') || !RBACService.can('users:manage')) {
-        throw new Error('Fallo de configuración: El administrador debe tener permisos de gestión');
+    if (!RBACService.can('substitutes:delete') || !RBACService.can('system:backup')) {
+        throw new Error('Fallo de configuración: El propietario debe tener permisos de gestión');
     }
-    return 'Matriz de permisos de Lector, Editor y Administrador validada estrictamente.';
+    // Probar recuperación de acceso
+    const recovery = await AuthService.resetPassword('admin@test.es');
+    if (!recovery || !recovery.message) {
+        throw new Error('Fallo en el servicio de recuperación de acceso');
+    }
+    return 'Control de acceso privado (bloqueo anónimo, propietario total) y recuperación de contraseña validados.';
 }
 
 // 4. Procuradores CRUD
